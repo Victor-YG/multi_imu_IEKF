@@ -1,0 +1,98 @@
+{
+"mpu6050_6axis_calibration":
+    {
+        "Gyroscope":
+        {
+            "MeasurementRange":         4.3633,
+            "Resolution":               0.000133231,
+            "NoiseDensity":            [8.7266e-05, 8.7266e-05, 8.7266e-05],
+
+            "ConstantBias":            [0.0, 0.0, 0.0],
+            "RandomWalk":              [0.0, 0.0, 0.0]
+        },
+        "Accelerometer":
+        {
+            "MeasurementRange":        19.62,
+            "Resolution":               0.000598754,
+            "NoiseDensity":            [0.003924, 0.003924, 0.003924],
+
+            "ConstantBias":            [0.0, 0.0, 0.0],
+            "RandomWalk":              [0.0, 0.0, 0.0]
+        }
+    },
+
+    "mpu6050_6axis_basic_slow_250dps_2g":
+    {
+        "Gyroscope":
+        {
+            "MeasurementRange":         4.3633,
+            "Resolution":               0.000133231,
+            "NoiseDensity":            [8.7266e-05, 8.7266e-05, 8.7266e-05],
+
+            "ConstantBias":            [0.1491, 0.1234, 0.1028],
+            "RandomWalk":              [0.01, 0.01, 0.01]
+        },
+        "Accelerometer":
+        {
+            "MeasurementRange":        19.62,
+            "Resolution":               0.000598754,
+            "NoiseDensity":            [0.003924, 0.003924, 0.003924],
+
+            "ConstantBias":            [0.4905, 0.3454, 0.2392],
+            "RandomWalk":              [0.1, 0.1, 0.1]
+        }
+    },
+
+    "mpu6050_6axis_basic_fast_1000dps_8g":
+    {
+        "Gyroscope":
+        {
+            "MeasurementRange":         17.4533,
+            "Resolution":               0.000532112,
+            "NoiseDensity":            [8.7266e-05, 8.7266e-05, 8.7266e-05],
+
+            "ConstantBias":            [0.3491, 0.5234, 0.1928],
+            "RandomWalk":              [0.1, 0.1, 0.1]
+        },
+        "Accelerometer":
+        {
+            "MeasurementRange":        78.48,
+            "Resolution":               0.002395019,
+            "NoiseDensity":            [0.003924, 0.003924, 0.003924],
+
+            "ConstantBias":            [0.4905, 0.3454, 0.2392],
+            "RandomWalk":              [0.1, 0.1, 0.1]
+        }
+    },
+
+    "mpu6050_6axis_advanced":
+    {
+        "Gyroscope":
+        {
+            "MeasurementRange":         4.3633,
+            "Resolution":               0.000133231,
+            "NoiseDensity":            [8.7266e-05, 8.7266e-05, 8.7266e-05],
+
+            "AxesMisalignment":         5,
+            "ConstantBias":            [0.3491, 0.5234, 0.1928],
+            "RandomWalk":              [0.1, 0.1, 0.1],
+            "BiasInstability":         [0, 0, 0],
+            "TemperatureBias":         [0, 0, 0],
+            "TemperatureScaleFactor":  [0, 0, 0],
+            "AccelerationBias":        [0.00017809, 0.00017809, 0.00017809]
+        },
+        "Accelerometer":
+        {
+            "MeasurementRange":        19.62,
+            "Resolution":               0.000598754,
+            "NoiseDensity":            [0.003924, 0.003924, 0.003924],
+
+            "AxesMisalignment":         2,
+            "ConstantBias":            [0.4905, 0.3454, 0.2392],
+            "RandomWalk":              [0.1, 0.1, 0.1],
+            "BiasInstability":         [0, 0, 0],
+            "TemperatureBias":         [0, 0, 0],
+            "TemperatureScaleFactor":  [0, 0, 0]
+        }
+    }
+}
