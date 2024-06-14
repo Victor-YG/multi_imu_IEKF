@@ -13,16 +13,16 @@ omega_all   = zeros(N, 3);
 omega_i_all = zeros(N, 3);
 alpha_all   = zeros(N, 3);
 pos_all     = zeros(N, 3);
-vel_all     = zeros(N, 3);
+vel_i_all   = zeros(N, 3);
 accel_all   = zeros(N, 3);
 accel_i_all = zeros(N, 3);
 
 % initial value
-C = eye(3);
+C     = eye(3);
 omega = zeros(1, 3);
 alpha = zeros(1, 3);
 pos   = zeros(1, 3);
-vel   = zeros(1, 3);
+vel_i = zeros(1, 3);
 accel = zeros(1, 3);
 
 % trajectory function coefficients
@@ -98,16 +98,16 @@ for k = 1 : N
     accel_all(k, :) = accel;
 
     % compute trajectory
-    [pos, C, vel, accel_i, omega_i] = vehicle(accel, omega); % here C := C_{vi}
+    [pos, C, vel_i, accel_i, omega_i] = vehicle(accel, omega); % here C := C_{vi}
     pos_all(k, :) = pos;
-    vel_all(k, :) = vel;
+    vel_i_all(k, :) = vel_i;
     accel_i_all(k, :) = accel_i;
     C_all(:, :, k) = inv(C); % we want C_{iv}
     omega_i_all(k, :) = omega_i;
 end
 
 save("data_kinematics.mat", "C_all", "omega_all", "omega_i_all", "alpha_all", ...
-                            "pos_all", "vel_all", "accel_all", "accel_i_all", ...
+                            "pos_all", "vel_i_all", "accel_all", "accel_i_all", ...
                             "N", "dt");
 
 disp("done generating trajectory");

@@ -22,7 +22,7 @@ def main():
     omega_all = dataset["omega_all"]
     alpha_all = dataset["alpha_all"]
     pos_all = dataset["pos_all"]
-    vel_all = dataset["vel_all"]
+    vel_i_all = dataset["vel_all"]
     accel_all = dataset["accel_all"]
     accel_s_all = dataset["accel_s_all"]
     accel_i_all = dataset["accel_i_all"]
@@ -40,7 +40,7 @@ def main():
 
     C_iv = C_all[:, :, 0]
     pos  = pos_all[0, :] + np.matmul(C_iv, r_sv_v.reshape(3, 1)).flatten()
-    vel  = vel_all[0, :] + np.matmul(C_iv, np.cross(omega_all[0, :], r_sv_v).reshape(3, 1)).flatten()
+    vel  = vel_i_all[0, :] + np.matmul(C_iv, np.cross(omega_all[0, :], r_sv_v).reshape(3, 1)).flatten()
     pos_off = np.zeros_like(pos)
 
     for k in range(N):

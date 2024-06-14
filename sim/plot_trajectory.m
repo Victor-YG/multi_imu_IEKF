@@ -32,15 +32,15 @@ title('yaw');
 % plot velocity
 figure;
 subplot(3, 1, 1);
-plot(vel_all(:, 1));
+plot(vel_i_all(:, 1));
 title('vel_x');
 
 subplot(3, 1, 2);
-plot(vel_all(:, 2));
+plot(vel_i_all(:, 2));
 title('vel_y');
 
 subplot(3, 1, 3);
-plot(vel_all(:, 3));
+plot(vel_i_all(:, 3));
 title('vel_z');
 
 % plot acceleration
