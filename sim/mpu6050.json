@@ -1,4 +1,26 @@
 {
+"mpu6050_6axis_perfect":
+    {
+        "Gyroscope":
+        {
+            "MeasurementRange":         4.3633,
+            "Resolution":               0.000133231,
+            "NoiseDensity":            [0.0, 0.0, 0.0],
+
+            "ConstantBias":            [0.0, 0.0, 0.0],
+            "RandomWalk":              [0.0, 0.0, 0.0]
+        },
+        "Accelerometer":
+        {
+            "MeasurementRange":        19.62,
+            "Resolution":               0.000598754,
+            "NoiseDensity":            [0.0, 0.0, 0.0],
+
+            "ConstantBias":            [0.0, 0.0, 0.0],
+            "RandomWalk":              [0.0, 0.0, 0.0]
+        }
+    },
+
 "mpu6050_6axis_calibration":
     {
         "Gyroscope":
