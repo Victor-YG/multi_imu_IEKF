@@ -4,7 +4,7 @@ clc
 % IMU calibration info
 C_sv   = eye(3);
 r_sv_v = zeros(1, 3);
-r_sv_v = [1, 0, 0];
+r_sv_v = [0, 1, 0];
 
 % create imu
 imu = imuSensor;
@@ -17,6 +17,7 @@ imu.Accelerometer
 % load kinematic data
 load("data_kinematics.mat")
 
+accel_s_all   = zeros(N, 3);
 y_accel_all   = zeros(N, 3);
 y_omega_all   = zeros(N, 3);
 y_accel_i_all = zeros(N, 3);
@@ -27,15 +28,21 @@ for k = 1 : N
     omega   = omega_all(k, :);
     omega_i = omega_i_all(k, :);
     accel_i = accel_i_all(k, :);
+
+    C_vi = inv(C_iv);
+    C_si = C_sv * C_vi;
     
     % compute acceleration and omega at IMU location (inertial frame)
     accel_t = cross(alpha, r_sv_v);
     accel_r = cross(omega, cross(omega, r_sv_v));
     accel_i = accel_i + (C_iv * (accel_t + accel_r)')';
 
+    % compute acceleration in sensor frame (for reference)
+    accel_s = (C_si * accel_i')';
+    accel_s_all(k, :) = accel_s;
+
     % take measurement
     % negative sign is needed as the IMU model output negative accel measurement
-    C_si = C_sv * inv(C_iv);
     [y_accel, y_omega] = imu(-accel_i, omega_i, C_si);
 
     y_accel_all(k, :) = y_accel;
@@ -49,6 +56,6 @@ end
 save("data_imu.mat", "C_all", "omega_all", "omega_i_all", "alpha_all", ...
                      "pos_all", "vel_all", "accel_all", "accel_i_all", ...
                      "y_accel_all", "y_omega_all", "y_accel_i_all", ...
-                     "N", "dt");
+                     "accel_s_all", "N", "dt", "C_sv", "r_sv_v");
 
 disp("done generating imu measurement");
