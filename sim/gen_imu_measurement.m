@@ -23,9 +23,9 @@ y_omega_all   = zeros(N, 3);
 y_accel_i_all = zeros(N, 3);
 
 for k = 1 : N
-    C_iv    = C_all(:, :, k);
-    alpha   = alpha_all(k, :);
-    omega   = omega_all(k, :);
+    C_iv    = C_iv_all(:, :, k);
+    alpha_v = alpha_v_all(k, :);
+    omega_v = omega_v_all(k, :);
     omega_i = omega_i_all(k, :);
     accel_i = accel_i_all(k, :);
 
@@ -33,8 +33,8 @@ for k = 1 : N
     C_si = C_sv * C_vi;
     
     % compute acceleration and omega at IMU location (inertial frame)
-    accel_t = cross(alpha, r_sv_v);
-    accel_r = cross(omega, cross(omega, r_sv_v));
+    accel_t = cross(alpha_v, r_sv_v);
+    accel_r = cross(omega_v, cross(omega_v, r_sv_v));
     accel_i = accel_i + (C_iv * (accel_t + accel_r)')';
 
     % compute acceleration in sensor frame (for reference)
@@ -53,9 +53,7 @@ for k = 1 : N
     y_accel_i_all(k, :) = y_accel_i';
 end
 
-save("data_imu.mat", "C_all", "omega_all", "omega_i_all", "alpha_all", ...
-                     "pos_all", "vel_all", "accel_all", "accel_i_all", ...
-                     "y_accel_all", "y_omega_all", "y_accel_i_all", ...
-                     "accel_s_all", "N", "dt", "C_sv", "r_sv_v");
+save("data_imu.mat", "C_sv", "r_sv_v", "accel_s_all", ...
+                     "y_omega_all", "y_accel_all", "y_accel_i_all");
 
 disp("done generating imu measurement");

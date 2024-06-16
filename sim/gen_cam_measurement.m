@@ -21,8 +21,8 @@ load("data_kinematics.mat")
 obs_all = zeros(N, 7);  % obs = (x, y, z, u, v, n_u, n_v)
 
 for k = 1 : N
-    C_iv    = C_all(:, :, k);
-    r_vi_i  = pos_all(k, :);
+    C_iv    = C_iv_all(:, :, k);
+    r_vi_i  = r_vi_i_all(k, :);
 
     % sample a random (u, v, d)
     u = rand();
