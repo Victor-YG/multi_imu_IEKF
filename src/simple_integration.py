@@ -61,7 +61,7 @@ def main():
 
         omega = omega_v_all[k, :]
         accel = y_accel_all[k, :]
-        C_is    = np.matmul(C_iv, C_vs)
+        C_is  = np.matmul(C_iv, C_vs)
 
         # selecting how to populate acceleration in inertial frame
         accel_i = np.matmul(C_iv, accel) - np.array([0.0, 0.0, 9.81])           # use measurement

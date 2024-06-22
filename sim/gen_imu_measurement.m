@@ -4,7 +4,7 @@ clc
 % IMU calibration info
 C_sv   = eye(3);
 r_sv_v = zeros(1, 3);
-r_sv_v = [0, 1, 0];
+r_sv_v = [0, 0, 0];
 
 % create imu
 imu = imuSensor;
@@ -14,8 +14,13 @@ loadparams(imu, fn, 'mpu6050_6axis_calibration');
 imu.Gyroscope
 imu.Accelerometer
 
-% load kinematic data
-load("data_kinematics.mat")
+w_omega = imu.Gyroscope.RandomWalk;
+w_accel = imu.Accelerometer.RandomWalk;
+n_omega = imu.Gyroscope.NoiseDensity;
+n_accel = imu.Accelerometer.NoiseDensity;
+
+% load trajectory data
+load("data_trajectory.mat")
 
 accel_s_all   = zeros(N, 3);
 y_accel_all   = zeros(N, 3);
@@ -53,7 +58,7 @@ for k = 1 : N
     y_accel_i_all(k, :) = y_accel_i';
 end
 
-save("data_imu.mat", "C_sv", "r_sv_v", "accel_s_all", ...
-                     "y_omega_all", "y_accel_all", "y_accel_i_all");
+save("data_imu.mat", "C_sv", "r_sv_v", "w_omega", "w_accel", "n_omega", "n_accel", ...
+                     "accel_s_all", "y_omega_all", "y_accel_all", "y_accel_i_all");
 
 disp("done generating imu measurement");
