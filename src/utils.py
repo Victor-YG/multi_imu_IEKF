@@ -71,7 +71,7 @@ def plot_error_distribution(X, P):
     X_var = np.zeros([K, 9])
 
     for k in range(K):
-        var = np.diag(P[:, :, k])
+        var = np.diag(P[0: 9, 0: 9, k])
         X_var[k, :] = var
 
     fig, axes = plt.subplots(9, 1)
