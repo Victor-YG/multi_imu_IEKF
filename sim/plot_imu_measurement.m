@@ -1,7 +1,7 @@
 clear all
 clc
 
-load("data_kinematics.mat")
+load("data_trajectory.mat")
 load("data_imu.mat")
 
 % plot measurement angular velocity (body frame)
