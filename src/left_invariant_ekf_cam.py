@@ -11,6 +11,106 @@ from scipy.spatial.transform import Rotation
 from utils import *
 
 
+class Inertial(object):
+    def __init__(self, filename):
+        '''construct an IMU object with the input .dat file'''
+
+        print(f"[INFO]: loading IMU data from '{filename}'")
+        dataset = scipy.io.loadmat(filename)
+
+        self.C_sv        = dataset["C_sv"]
+        self.C_vs = np.linalg.inv(self.C_sv)
+        self.r_sv_v      = dataset["r_sv_v"]
+        self.accel_s_all = dataset["accel_s_all"]
+        self.y_omega_all = dataset["y_omega_all"]
+        self.y_accel_all = dataset["y_accel_all"]
+        self.w_omega     = dataset["w_omega"].flatten()
+        self.w_accel     = dataset["w_accel"].flatten()
+        self.n_omega     = dataset["n_omega"].flatten()
+        self.n_accel     = dataset["n_accel"].flatten()
+
+        print(f"[INFO]: loaded  IMU data from '{filename}'")
+
+
+class Multi_Inertial(object):
+    def __init__(self, filenames):
+        '''create a super class that contains multiple IMUs'''
+        self.imu_all = []
+
+        for imu_input in filenames:
+            imu = Inertial(imu_input)
+            self.imu_all.append(imu)
+
+        self.num_imu = len(self.imu_all)
+
+        # get the centroid of IMUs
+        self.avg_r_sv_v = 0.0
+        for imu in self.imu_all:
+            self.avg_r_sv_v += imu.r_sv_v
+
+        self.avg_r_sv_v = self.avg_r_sv_v / self.num_imu
+
+
+    def get_transformation(self):
+        '''get the transformation from vehicle frame to sensor frame (T_sv)'''
+
+        return Cr2T(np.eye(3), self.avg_r_sv_v)
+
+
+    def get_avg_noise(self):
+        '''get average noise of omega and accel'''
+
+        sum_var_inv_omega = 0.0
+        sum_var_inv_accel = 0.0
+
+        for imu in self.imu_all:
+            n_omega = imu.C_vs @ imu.n_omega
+            n_accel = imu.C_vs @ imu.n_accel
+            sum_var_inv_omega += 1 / n_omega**2
+            sum_var_inv_accel += 1 / n_accel**2
+
+        avg_n_omega = np.sqrt(1 / sum_var_inv_omega)
+        avg_n_accel = np.sqrt(1 / sum_var_inv_accel)
+
+        return avg_n_omega, avg_n_accel
+
+
+    def get_avg_bias_drift(self):
+        '''get average noise of omega and accel'''
+
+        sum_var_inv_omega = 0.0
+        sum_var_inv_accel = 0.0
+
+        for imu in self.imu_all:
+            w_omega = imu.C_vs @ imu.w_omega
+            w_accel = imu.C_vs @ imu.w_accel
+            sum_var_inv_omega += 1 / w_omega**2
+            sum_var_inv_accel += 1 / w_accel**2
+
+        avg_w_omega = np.sqrt(1 / sum_var_inv_omega)
+        avg_w_accel = np.sqrt(1 / sum_var_inv_accel)
+
+        return avg_w_omega, avg_w_accel
+
+
+    def get_avg_measurement(self, k):
+        '''get average measurement (omega, accel)'''
+
+        avg_y_accel = 0.0
+        avg_y_omega = 0.0
+
+        for imu in self.imu_all:
+            y_omega = imu.C_vs @ imu.y_omega_all[k, :]
+            y_accel = imu.C_vs @ imu.y_accel_all[k, :]
+            avg_y_omega += y_omega
+            avg_y_accel += y_accel
+
+        avg_y_omega = avg_y_omega / self.num_imu
+        avg_y_accel = avg_y_accel / self.num_imu
+
+        return avg_y_omega, avg_y_accel
+
+
 def compute_process_model_jocobian(omega, accel):
     A = np.zeros([15, 15])
     omega_vee = get_lifted_form(omega)
@@ -80,9 +180,9 @@ def plot_bias(b_omega_all, b_omega_true_all, b_accel_all, b_accel_true_all):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--trajectory", help="Path to .mat file with the simulated trajectory data", default="./res/dataset/data_trajectory.mat", required=False)
-    parser.add_argument("--imu",        help="Path to .mat file with the simulated imu data",        default="./res/dataset/data_imu_biased.mat", required=False)
-    parser.add_argument("--cam",        help="Path to .mat file with the simulated camera data",     default="./res/dataset/data_cam_10.mat",     required=False)
+    parser.add_argument("--trajectory", help="Path to .mat file with the simulated trajectory data", default="./res/dataset/data_trajectory.mat",  required=False)
+    parser.add_argument("--cam",        help="Path to .mat file with the simulated camera data",     default="./res/dataset/data_cam.mat",         required=False)
+    parser.add_argument("--imu",        help="Path to .mat file with the simulated imu data",        default=[], action="append",                  required=False)
     args = parser.parse_args()
 
     #############
@@ -105,20 +205,8 @@ def main():
     print("[INFO]: loaded trajectory data")
 
     # load IMU data
-    dataset = scipy.io.loadmat(args.imu)
     print("[INFO]: loading IMU data...")
-
-    C_sv        = dataset["C_sv"]
-    r_sv_v      = dataset["r_sv_v"]
-    accel_s_all = dataset["accel_s_all"]
-    y_omega_all = dataset["y_omega_all"]
-    y_accel_all = dataset["y_accel_all"]
-    w_omega     = dataset["w_omega"].flatten()
-    w_accel     = dataset["w_accel"].flatten()
-    n_omega     = dataset["n_omega"].flatten()
-    n_accel     = dataset["n_accel"].flatten()
-
-    C_vs = np.linalg.inv(C_sv)
+    virtual_imu = Multi_Inertial(args.imu)
     print("[INFO]: loaded IMU data")
 
     # load cam data
@@ -144,9 +232,12 @@ def main():
     T_cam = 500   # period of cam: sample every T_cam timestep
     dt = dt * T_imu
 
+    (n_omega, n_accel) = virtual_imu.get_avg_noise()
     Q_n_omega = np.diag(n_omega**2 / dt) # n_omega is in unit of (rad/s) / sqrt(Hz) thus var = n_omega**2 / dt
     Q_n_accel = np.diag(n_accel**2 / dt) # n_accel is in unit of (  m/s) / sqrt(Hz) thus var = n_accel**2 / dt
     Q_n = scipy.linalg.block_diag(Q_n_omega, Q_n_accel, np.zeros([3, 3]))
+
+    (w_omega, w_accel) = virtual_imu.get_avg_bias_drift()
     Q_b_omega = np.diag(w_omega**2 / dt) # w_omega is in unit of (rad/s) * sqrt(Hz) thus var = w_omega**2 / dt
     Q_b_accel = np.diag(w_accel**2 / dt) # w_accel is in unit of (  m/s) * sqrt(Hz) thus var = w_accel**2 / dt
     Q_b = scipy.linalg.block_diag(Q_b_omega, Q_b_accel)
@@ -156,6 +247,9 @@ def main():
     R_cam[1, 1] = var_n_v[0][0]
     R_cam_all = [R_cam] * M
     R = scipy.linalg.block_diag(*R_cam_all)
+
+    # relative transform from vehicle to virtual IMU
+    T_sv = virtual_imu.get_transformation()
 
     ############
     # run IEKF #
@@ -188,15 +282,18 @@ def main():
 
     # N = 50000
     for k in range(N):
+        # get imu measurement
+        y_omega, y_accel = virtual_imu.get_avg_measurement(k)
+
         # get true bias
-        b_omega_true_all[k, :] = y_omega_all[k, :] - omega_v_all[k, :]
-        b_accel_true_all[k, :] = (y_accel_all[k, :] - np.matmul(np.linalg.inv(C_iv_all[:, :, k]), np.array([0.0, 0.0, 9.81]))) - accel_v_all[k, :]
+        b_omega_true_all[k, :] = y_omega - omega_v_all[k, :]
+        b_accel_true_all[k, :] = (y_accel - np.matmul(np.linalg.inv(C_iv_all[:, :, k]), np.array([0.0, 0.0, 9.81]))) - accel_v_all[k, :]
 
         # run propagation
         if k % T_imu == 0:
             # get measurement
-            omega = y_omega_all[k, :] - b_omega
-            accel = y_accel_all[k, :] - b_accel
+            omega = y_omega - b_omega
+            accel = y_accel - b_accel
             accel_i = np.matmul(C_iv, accel) - np.array([0.0, 0.0, 9.81])
 
             # propagate rotation
