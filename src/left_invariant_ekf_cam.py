@@ -269,6 +269,7 @@ def main():
     vel_est_all = np.zeros_like(vel_i_all)
     pos_est_all = np.zeros_like(r_vi_i_all)
     xi_all = np.zeros([N, 9])
+    e_b_all = np.zeros([N, 6])
     b_omega_all = np.zeros([N, 3])
     b_accel_all = np.zeros([N, 3])
     b_omega_true_all = np.zeros([N, 3])
@@ -284,10 +285,6 @@ def main():
     for k in range(N):
         # get imu measurement
         y_omega, y_accel = virtual_imu.get_avg_measurement(k)
-
-        # get true bias
-        b_omega_true_all[k, :] = y_omega - omega_v_all[k, :]
-        b_accel_true_all[k, :] = (y_accel - np.matmul(np.linalg.inv(C_iv_all[:, :, k]), np.array([0.0, 0.0, 9.81]))) - accel_v_all[k, :]
 
         # run propagation
         if k % T_imu == 0:
@@ -355,8 +352,18 @@ def main():
         b_omega_all[k, :] = b_omega
         b_accel_all[k, :] = b_accel
 
-        # compute error
-        C_err    =  np.linalg.inv(C_iv) @ C_iv_all[:, :, k]
+        # get true bias
+        b_omega_true = y_omega - omega_v_all[k, :]
+        b_accel_true = (y_accel - np.matmul(np.linalg.inv(C_iv_all[:, :, k]), np.array([0.0, 0.0, 9.81]))) - accel_v_all[k, :]
+        b_omega_true_all[k, :] = b_omega_true
+        b_accel_true_all[k, :] = b_accel_true
+
+        # compute bias error
+        e_b_all[k, 0: 3] = b_omega_true - b_omega
+        e_b_all[k, 3: 6] = b_accel_true - b_accel
+
+        # compute state error
+        C_err    = np.linalg.inv(C_iv) @ C_iv_all[:, :, k]
         xi[0: 3] = Rotation.from_matrix(C_err).as_rotvec()
         xi[3: 6] = vel -  vel_i_all[k, :]
         xi[6: 9] = pos - r_vi_i_all[k, :]
@@ -368,10 +375,16 @@ def main():
     # plot results #
     ################
     # plot trajectory
-    plot_trajectory(r_vi_i_all[0: N], pos_est_all[0: N])
+    plot_trajectory(r_vi_i_all[0: N, :], pos_est_all[0: N, :])
 
-    # plot error
-    plot_error_distribution(xi_all[0: N], P_all[0: N])
+    # plot state error
+    plot_state_error_and_uncertainty(xi_all[0: N, 0: 3], P_all[0: 3, 0: 3, 0: N], titles=["e_roll", "e_pitch", "e_yaw"])
+    plot_state_error_and_uncertainty(xi_all[0: N, 3: 6], P_all[3: 6, 3: 6, 0: N], titles=["e_vel_x", "e_vel_y", "e_vel_z"])
+    plot_state_error_and_uncertainty(xi_all[0: N, 6: 9], P_all[6: 9, 6: 9, 0: N], titles=["e_pos_x", "e_pos_y", "e_pos_z"])
+
+    # plot bias error
+    plot_state_error_and_uncertainty(e_b_all[0: N, 0: 3], P_all[ 9: 12,  9: 12, 0: N], titles=["b_omega_x", "b_omega_y", "b_omega_z"])
+    plot_state_error_and_uncertainty(e_b_all[0: N, 3: 6], P_all[12: 15, 12: 15, 0: N], titles=["b_accel_x", "b_accel_y", "b_accel_z"])
 
     # plot bias
     plot_bias(b_omega_all, b_omega_true_all, b_accel_all, b_accel_true_all)

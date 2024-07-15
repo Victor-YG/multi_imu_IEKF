@@ -64,100 +64,25 @@ def plot_trajectory(trajectory_tru, trajectory_est):
     plt.show()
 
 
-def plot_error_distribution(X, P):
-    '''plot estimated pose error against ground truth'''
+def plot_state_error_and_uncertainty(e, P, titles):
+    '''plot error and standard deviation'''
 
-    K = X.shape[0]
-    X_var = np.zeros([K, 9])
+    K = e.shape[0]
+    D = e.shape[1]
+    stddev = np.zeros([K, D])
 
     for k in range(K):
-        var = np.diag(P[0: 9, 0: 9, k])
-        X_var[k, :] = var
+        var = np.diag(P[:, :, k])
+        stddev[k, :] = np.sqrt(var)
 
-    fig, axes = plt.subplots(9, 1)
-
-    # axes[0].set_ylim([-0.5, 0.5])
-    # axes[1].set_ylim([-0.5, 0.5])
-    # axes[2].set_ylim([-0.5, 0.5])
-    # axes[3].set_ylim([-0.5, 0.5])
-    # axes[4].set_ylim([-0.5, 0.5])
-    # axes[5].set_ylim([-0.5, 0.5])
-    # axes[6].set_ylim([-0.5, 0.5])
-    # axes[7].set_ylim([-0.5, 0.5])
-    # axes[8].set_ylim([-0.5, 0.5])
-
+    fig, axes = plt.subplots(D, 1)
     t = np.linspace(start=0, stop=K, num=K, dtype=int)
 
-    axes[0].plot(t, X[:, 0])
-    axes[0].plot(t,  3 * np.sqrt(X_var)[:, 0], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[0].plot(t, -3 * np.sqrt(X_var)[:, 0], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[0].fill_between(t, 3 * np.sqrt(X_var)[:, 0], -3 * np.sqrt(X_var)[:, 0],
-                         color='green', alpha=0.1, label='Filled Area')
-
-    axes[1].plot(t, X[:, 1])
-    axes[1].plot(t,  3 * np.sqrt(X_var)[:, 1], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[1].plot(t, -3 * np.sqrt(X_var)[:, 1], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[1].fill_between(t, 3 * np.sqrt(X_var)[:, 1], -3 * np.sqrt(X_var)[:, 1],
-                         color='green', alpha=0.1, label='Filled Area')
-
-    axes[2].plot(t, X[:, 2])
-    axes[2].plot(t,  3 * np.sqrt(X_var)[:, 2], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[2].plot(t, -3 * np.sqrt(X_var)[:, 2], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[2].fill_between(t, 3 * np.sqrt(X_var)[:, 2], -3 * np.sqrt(X_var)[:, 2],
-                         color='green', alpha=0.1, label='Filled Area')
-
-    axes[3].plot(t, X[:, 3])
-    axes[3].plot(t,  3 * np.sqrt(X_var)[:, 3], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[3].plot(t, -3 * np.sqrt(X_var)[:, 3], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[3].fill_between(t, 3 * np.sqrt(X_var)[:, 3], -3 * np.sqrt(X_var)[:, 3],
-                         color='green', alpha=0.1, label='Filled Area')
-
-    axes[4].plot(t, X[:, 4])
-    axes[4].plot(t,  3 * np.sqrt(X_var)[:, 4], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[4].plot(t, -3 * np.sqrt(X_var)[:, 4], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[4].fill_between(t, 3 * np.sqrt(X_var)[:, 4], -3 * np.sqrt(X_var)[:, 4],
-                         color='green', alpha=0.1, label='Filled Area')
-
-    axes[5].plot(t, X[:, 5])
-    axes[5].plot(t,  3 * np.sqrt(X_var)[:, 5], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[5].plot(t, -3 * np.sqrt(X_var)[:, 5], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[5].fill_between(t, 3 * np.sqrt(X_var)[:, 5], -3 * np.sqrt(X_var)[:, 5],
-                         color='green', alpha=0.1, label='Filled Area')
-
-    axes[6].plot(t, X[:, 6])
-    axes[6].plot(t,  3 * np.sqrt(X_var)[:, 6], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[6].plot(t, -3 * np.sqrt(X_var)[:, 6], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[6].fill_between(t, 3 * np.sqrt(X_var)[:, 6], -3 * np.sqrt(X_var)[:, 6],
-                         color='green', alpha=0.1, label='Filled Area')
-
-    axes[7].plot(t, X[:, 7])
-    axes[7].plot(t,  3 * np.sqrt(X_var)[:, 7], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[7].plot(t, -3 * np.sqrt(X_var)[:, 7], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[7].fill_between(t, 3 * np.sqrt(X_var)[:, 7], -3 * np.sqrt(X_var)[:, 7],
-                         color='green', alpha=0.1, label='Filled Area')
-
-    axes[8].plot(t, X[:, 8])
-    axes[8].plot(t,  3 * np.sqrt(X_var)[:, 8], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[8].plot(t, -3 * np.sqrt(X_var)[:, 8], color="orange",
-                 linewidth=1, linestyle='dashed')
-    axes[8].fill_between(t, 3 * np.sqrt(X_var)[:, 8], -3 * np.sqrt(X_var)[:, 8],
-                         color='green', alpha=0.1, label='Filled Area')
+    for d in range(D):
+        axes[d].plot(t, e[:, d])
+        axes[d].plot(t,  3 * stddev[:, d], color="orange", linewidth=1, linestyle='dashed')
+        axes[d].plot(t, -3 * stddev[:, d], color="orange", linewidth=1, linestyle='dashed')
+        axes[d].fill_between(t, 3 * stddev[:, d], -3 * stddev[:, d], color='green', alpha=0.1, label='Filled Area')
+        axes[d].set_title(titles[d])
 
     plt.show()
