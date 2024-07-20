@@ -32,25 +32,84 @@ def get_circle_dot_for_SE2_3(p):
     return M
 
 
-def Cr2T(C_vi, r_i_vi):
-    '''given C_vi and r_i_vi return T_vi'''
+def Cr2T(C_vi, r_vi_i):
+    '''given C_vi and r_vi_i return T_vi'''
 
     T_vi = np.eye(4)
-    r_v_iv = -np.matmul(C_vi, r_i_vi.flatten())
+    r_v_iv = -np.matmul(C_vi, r_vi_i.flatten())
     T_vi[0:3, 0:3] = C_vi.copy()
     T_vi[0:3,   3] = r_v_iv.copy()
     return T_vi
 
 
 def T2Cr(T_vi):
-    '''given T_vi return C_vi and r_i_vi'''
+    '''given T_vi return C_vi and r_vi_i'''
 
     r_v_iv = T_vi[0:3, 3].copy()
     C_vi   = T_vi[0:3, 0:3].copy()
     C_iv   = np.linalg.inv(C_vi)
-    r_i_vi = -np.matmul(C_iv, r_v_iv)
+    r_vi_i = -np.matmul(C_iv, r_v_iv)
 
-    return C_vi, r_i_vi
+    return C_vi, r_vi_i
+
+
+def pose_to_rotation_and_translation(T_iv):
+    '''given T_iv return C_iv and r_vi_i'''
+
+    C_iv   = T_iv[0:3, 0:3].copy()
+    r_vi_i = T_iv[0:3,   3].copy()
+    return C_iv, r_vi_i
+
+
+def rotation_and_translation_to_pose(C_iv, r_vi_i):
+    '''given C_iv and r_vi_i return T_iv'''
+
+    T_iv = np.eye(4)
+    T_iv[0:3, 0:3] = C_iv.copy()
+    T_iv[0:3,   3] = r_vi_i.copy()
+    return T_iv
+
+
+def compute_process_model_jocobian(omega, accel):
+    A = np.zeros([15, 15])
+    omega_vee = get_lifted_form(omega)
+    accel_vee = get_lifted_form(accel)
+
+    A[0:3, 0:3] = -omega_vee
+    A[3:6, 3:6] = -omega_vee
+    A[6:9, 6:9] = -omega_vee
+    A[3:6, 0:3] = -accel_vee
+    A[6:9, 3:6] = np.eye(3)
+
+    A[0:6, 9:15] = -np.eye(6)
+    return A
+
+
+def compute_measurement_model_jocobian(T, fx, fy, cx, cy, x, y, z, u, v):
+    e_y = np.zeros(2)
+    p_i = np.array([x, y, z, 1.0])
+    p_c = np.matmul(T, p_i) # landmarks in camera frame
+
+    y_c  = np.array([u, v])
+    y_op = np.zeros(2)
+    y_op[0] = fx *  p_c[0] / p_c[2] + cx # u
+    y_op[1] = fy *  p_c[1] / p_c[2] + cy # v
+    e_y = y_c - y_op
+
+    Z_jk = get_circle_dot_for_SE2_3(p_c)
+
+    S_jk = np.zeros([2, 3])
+    S_jk[0, 0] =  fx /  p_c[2]
+    S_jk[0, 2] = -fx *  p_c[0] / p_c[2]**2
+    S_jk[1, 1] =  fy /  p_c[2]
+    S_jk[1, 2] = -fy *  p_c[1] / p_c[2]**2
+    # print(f"S_jk = {S_jk}")
+
+    D_T = np.zeros([3, 4])
+    D_T[0: 3, 0: 3] = np.eye(3)
+    G = -S_jk @ D_T @ Z_jk
+
+    return e_y, G
 
 
 def plot_trajectory(trajectory_tru, trajectory_est):

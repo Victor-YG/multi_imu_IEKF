@@ -1,3 +1,5 @@
+'''this script is the baseline implementation of IEKF with IMU and GPS'''
+
 import os
 import argparse
 
@@ -8,7 +10,7 @@ import scipy.io
 import scipy.linalg
 from scipy.spatial.transform import Rotation
 
-from utils import *
+from core.utils import *
 
 
 def compute_process_model_jocobian(omega, accel):
@@ -21,32 +23,6 @@ def compute_process_model_jocobian(omega, accel):
     A[3:6, 0:3] = -accel_vee
     A[6:9, 3:6] = np.eye(3)
     return A
-
-
-def compute_measurement_model_jocobian(T, fx, fy, cx, cy, x, y, z, u, v):
-    e_y = np.zeros(2)
-    p_i = np.array([x, y, z, 1.0])
-    p_c = np.matmul(T, p_i) # landmarks in camera frame
-
-    y_c  = np.array([u, v])
-    y_op = np.zeros(2)
-    y_op[0] = fx *  p_c[0] / p_c[2] + cx # u
-    y_op[1] = fy *  p_c[1] / p_c[2] + cy # v
-    e_y = y_c - y_op
-
-    Z_jk = get_circle_dot_for_SE2_3(p_c)
-
-    S_jk = np.zeros([2, 3])
-    S_jk[0, 0] =  fx /  p_c[2]
-    S_jk[0, 2] = -fx *  p_c[0] / p_c[2]**2
-    S_jk[1, 1] =  fy /  p_c[2]
-    S_jk[1, 2] = -fy *  p_c[1] / p_c[2]**2
-
-    D_T = np.zeros([3, 4])
-    D_T[0: 3, 0: 3] = np.eye(3)
-    G = np.matmul(S_jk, np.matmul(D_T, Z_jk))
-
-    return e_y, G
 
 
 def main():

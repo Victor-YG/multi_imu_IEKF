@@ -1,3 +1,5 @@
+'''this script is the baseline implementation of IEKF with multi-IMU and camera'''
+
 import os
 import argparse
 
@@ -8,7 +10,7 @@ import scipy.io
 import scipy.linalg
 from scipy.spatial.transform import Rotation
 
-from utils import *
+from core.utils import *
 
 
 class Inertial(object):
