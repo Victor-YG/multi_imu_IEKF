@@ -86,7 +86,7 @@ class IMU_sensor(object):
 
     def get_bias_drift(self):
         '''
-        get the noise magnitude of the IMU
+        get the drift magnitude of the IMU
             - w_omega is in unit of (rad/s) * sqrt(Hz)
             - w_accel is in unit of (m/s^2) * sqrt(Hz)
         '''

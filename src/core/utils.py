@@ -85,24 +85,26 @@ def compute_process_model_jocobian(omega, accel):
     return A
 
 
-def compute_measurement_model_jocobian(T, fx, fy, cx, cy, x, y, z, u, v):
+def compute_measurement_model_jocobian(T_vi, T_cv, fx, fy, cx, cy, x, y, z, u, v):
     e_y = np.zeros(2)
     p_i = np.array([x, y, z, 1.0])
-    p_c = np.matmul(T, p_i) # landmarks in camera frame
+    p_v = T_vi @ p_i
+    p_c = T_cv @ p_v
 
     y_c  = np.array([u, v])
     y_op = np.zeros(2)
-    y_op[0] = fx *  p_c[0] / p_c[2] + cx # u
-    y_op[1] = fy *  p_c[1] / p_c[2] + cy # v
+    y_op[0] = fx * p_c[0] / p_c[2] + cx # u
+    y_op[1] = fy * p_c[1] / p_c[2] + cy # v
     e_y = y_c - y_op
 
-    Z_jk = get_circle_dot_for_SE2_3(p_c)
+    Z_jk = get_circle_dot_for_SE2_3(p_v)
+    Z_jk = T_cv @ Z_jk
 
     S_jk = np.zeros([2, 3])
-    S_jk[0, 0] =  fx /  p_c[2]
-    S_jk[0, 2] = -fx *  p_c[0] / p_c[2]**2
-    S_jk[1, 1] =  fy /  p_c[2]
-    S_jk[1, 2] = -fy *  p_c[1] / p_c[2]**2
+    S_jk[0, 0] =  fx / p_c[2]
+    S_jk[0, 2] = -fx * p_c[0] / p_c[2]**2
+    S_jk[1, 1] =  fy / p_c[2]
+    S_jk[1, 2] = -fy * p_c[1] / p_c[2]**2
     # print(f"S_jk = {S_jk}")
 
     D_T = np.zeros([3, 4])

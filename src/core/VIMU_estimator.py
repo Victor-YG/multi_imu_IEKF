@@ -9,11 +9,14 @@ from core.inertial_navigation_system import *
 class VIMU_estimator(inertial_navigation_system):
     '''estimator with single-IMU or virtual-IMU using vanilla IEKF'''
 
-    def __init__(self, T_iv):
+    def __init__(self, T_iv, vel=None):
         super().__init__()
         T_vi = np.linalg.inv(T_iv)
         self.C_iv, self.r_vi_i = pose_to_rotation_and_translation(T_iv)
-        self.vel  = np.zeros(3)
+        if vel is not None:
+            self.vel = vel
+        else:
+            self.vel = np.zeros(3)
         self.b_omega = np.zeros(3)
         self.b_accel = np.zeros(3)
         self.covariance = np.eye(15) * 1e-6
@@ -69,7 +72,7 @@ class VIMU_estimator(inertial_navigation_system):
         # propagate state covariance
         self.covariance = F @ self.covariance @ np.transpose(F) + R * dt
 
-        return self.C_vi, self.vel, self.r_vi_i, self.covariance
+        return self.C_iv, self.vel, self.r_vi_i, self.covariance
 
 
     def handle_camera_measurement(self, id, pt_3d, kp_2d, R=None):
@@ -85,7 +88,6 @@ class VIMU_estimator(inertial_navigation_system):
         T_iv = rotation_and_translation_to_pose(self.C_iv, self.r_vi_i)
         T_vi = np.linalg.inv(T_iv)
         T_cv = self.camera[id].T_cv
-        T_ci = T_cv @ T_vi
 
         # get camera properties
         K = self.camera[id].K
@@ -105,7 +107,7 @@ class VIMU_estimator(inertial_navigation_system):
             z = pt_3d[m, 2]
             u = kp_2d[m, 0]
             v = kp_2d[m, 1]
-            z_km, G_km = compute_measurement_model_jocobian(T_ci, fx, fy, cx, cy, x, y, z, u, v)
+            z_km, G_km = compute_measurement_model_jocobian(T_vi, T_cv, fx, fy, cx, cy, x, y, z, u, v)
             z_k[m * 2 : (m + 1) * 2] = z_km
             G_k[m * 2 : (m + 1) * 2, 0: 9] = G_km
             G_k_T = np.transpose(G_k)
