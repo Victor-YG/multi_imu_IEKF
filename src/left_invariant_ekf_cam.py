@@ -236,12 +236,12 @@ def main():
 
     (n_omega, n_accel) = virtual_imu.get_avg_noise()
     Q_n_omega = np.diag(n_omega**2 / dt) # n_omega is in unit of (rad/s) / sqrt(Hz) thus var = n_omega**2 / dt
-    Q_n_accel = np.diag(n_accel**2 / dt) # n_accel is in unit of (  m/s) / sqrt(Hz) thus var = n_accel**2 / dt
+    Q_n_accel = np.diag(n_accel**2 / dt) # n_accel is in unit of (m/s^2) / sqrt(Hz) thus var = n_accel**2 / dt
     Q_n = scipy.linalg.block_diag(Q_n_omega, Q_n_accel, np.zeros([3, 3]))
 
     (w_omega, w_accel) = virtual_imu.get_avg_bias_drift()
     Q_b_omega = np.diag(w_omega**2 / dt) # w_omega is in unit of (rad/s) * sqrt(Hz) thus var = w_omega**2 / dt
-    Q_b_accel = np.diag(w_accel**2 / dt) # w_accel is in unit of (  m/s) * sqrt(Hz) thus var = w_accel**2 / dt
+    Q_b_accel = np.diag(w_accel**2 / dt) # w_accel is in unit of (m/s^2) * sqrt(Hz) thus var = w_accel**2 / dt
     Q_b = scipy.linalg.block_diag(Q_b_omega, Q_b_accel)
 
     R_cam = np.eye(2)

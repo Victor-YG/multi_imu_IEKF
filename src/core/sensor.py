@@ -79,7 +79,7 @@ class IMU_sensor(object):
         '''
         get the noise magnitude of the IMU
             - n_omega is in unit of (rad/s) / sqrt(Hz)
-            - n_accel is in unit of (  m/s) / sqrt(Hz)
+            - n_accel is in unit of (m/s^2) / sqrt(Hz)
         '''
         return self.n_omega, self.n_accel
 
@@ -88,7 +88,7 @@ class IMU_sensor(object):
         '''
         get the noise magnitude of the IMU
             - w_omega is in unit of (rad/s) * sqrt(Hz)
-            - w_accel is in unit of (  m/s) * sqrt(Hz)
+            - w_accel is in unit of (m/s^2) * sqrt(Hz)
         '''
         return self.w_omega, self.w_accel
 
@@ -103,7 +103,7 @@ class IMU_sensor(object):
         '''
         get the measurement of the IMU at the given timestamp k if available
             - y_omega is in unit of (rad/s)
-            - y_accel is in unit of (  m/s)
+            - y_accel is in unit of (m/s^2)
         '''
 
         if k % self.period != 0:
