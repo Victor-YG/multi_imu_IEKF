@@ -12,6 +12,7 @@ class inertial_navigation_system(object):
         self.covariance = None
 
         self.imu = dict()
+        self.imu_model = dict()
         self.camera = dict()
         self.gps = dict()
 
@@ -36,10 +37,12 @@ class inertial_navigation_system(object):
         '''
 
         self.imu[id] = IMU_sensor_prop(id, T_sv, n_omega, n_accel, w_omega, w_accel)
+        self.imu_model[id] = IMU_sensor_model()
 
 
     def add_IMU(self, id, imu_sensor_prop):
         self.imu[id] = imu_sensor_prop
+        self.imu_model[id] = IMU_sensor_model()
 
 
     def add_camera(self, id, T_cv, K, var_n_u, var_n_v):

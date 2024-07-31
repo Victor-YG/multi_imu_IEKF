@@ -15,6 +15,7 @@ def main():
     parser.add_argument("--cam",        help="Path to .mat file with the simulated camera data",     default=[], action="append", required=False)
     parser.add_argument("--gps",        help="Path to .mat file with the simulated gps data",        default=[], action="append", required=False)
     parser.add_argument("--algo",       help="State estimation algorithm to evaluate (VIMU or CM-IMU)", default="VIMU")
+    parser.add_argument("-pre_proc",    help="Use Kalman Filter to time average over the IMU measurement", action="store_true", default=False)
     args = parser.parse_args()
 
     estimator = None
@@ -45,18 +46,34 @@ def main():
     # load IMU data
     imu_sensors = []
     print("[INFO]: loading IMU data...")
-    if args.algo == "VIMU":
-        virtual_imu = VIMU_sensor("vimu", args.imu)
-        virtual_imu.set_period(T_imu)
-        estimator = VIMU_estimator(virtual_imu.get_transformation())
-        estimator.add_IMU(virtual_imu.id, virtual_imu.get_properties())
-        imu_sensors.append(virtual_imu)
-    elif args.algo == "SIMU":
+
+    if args.algo == "SIMU":
         imu = IMU_sensor(f"imu-0", args.imu[0])
         imu.set_period(T_imu)
-        estimator = VIMU_estimator(imu.get_transformation())
+        estimator = VIMU_estimator(imu.get_transformation(), pre_proc=args.pre_proc)
         estimator.add_IMU(imu.id, imu.get_properties())
         imu_sensors.append(imu)
+
+    elif args.algo == "VIMU":
+        # multiple IMU with synchronous measurement
+        virtual_imu = VIMU_sensor("vimu", args.imu)
+        virtual_imu.set_period(T_imu)
+        estimator = VIMU_estimator(virtual_imu.get_transformation(), pre_proc=args.pre_proc)
+        estimator.add_IMU(virtual_imu.id, virtual_imu.get_properties())
+        imu_sensors.append(virtual_imu)
+
+    elif args.algo == "MIMU":
+        # multiple IMU with asynchronous measurement
+        virtual_imu = VIMU_sensor("vimu", args.imu)
+        estimator = VIMU_estimator(virtual_imu.get_transformation(), pre_proc=True)
+
+        for i in range(len(args.imu)):
+            imu = IMU_sensor(f"imu-{i}", args.imu[0])
+            imu.set_period(T_imu)
+            imu.set_phase(i)
+            imu_sensors.append(imu)
+            estimator.add_IMU(imu.id, imu.get_properties())
+
     elif args.algo == "CIMU":
         pass
         #TODO::to be implemented

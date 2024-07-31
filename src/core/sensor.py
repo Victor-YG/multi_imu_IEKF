@@ -33,6 +33,149 @@ class GPS_sensor_prop(object):
         self.var_n_z = var_n_z
 
 
+class IMU_sensor_model(object):
+    def __init__(self, w_alpha=0.1, w_jerk=1.0):
+        self.omega_state = np.zeros(6) # omega, angular_accel
+        self.accel_state = np.zeros(6)
+        self.omega_cov = np.eye(6) * 1e-3
+        self.accel_cov = np.eye(6) * 1e-3
+        self.w_alpha = np.ones(3) * w_alpha**2
+        self.w_jerk  = np.ones(3) * w_jerk**2
+        self.A = np.zeros([6, 6])
+        self.A[0: 3, 3: 6] = np.eye(3)
+        self.B = np.zeros([6, 3])
+        self.B[3: 6, 0: 3] = np.eye(3)
+        self.C = np.zeros([3, 6])
+        self.C[0: 3, 0: 3] = np.eye(3)
+
+
+    def propagate(self, dt):
+        F = scipy.linalg.expm(self.A * dt)
+        R = np.zeros([6, 6])
+
+        # propagate omega
+        self.omega_state = F @ self.omega_state
+        R[3: 6, 3: 6] = np.diag(self.w_alpha)
+        self.omega_cov = F @ self.omega_cov @ np.transpose(F) + R * dt
+
+        # propagate accel
+        self.accel_state = F @ self.accel_state
+        R[3: 6, 3: 6] = np.diag(self.w_jerk)
+        self.accel_cov = F @ self.accel_cov @ np.transpose(F) + R * dt
+
+
+    def update(self, time, omega, accel, n_omega, n_accel):
+        # compute error (innovation)
+        z_omega = omega - self.omega_state[0: 3]
+        z_accel = accel - self.accel_state[0: 3]
+
+        # construct Jacobian
+        G = self.C
+        G_T = np.transpose(G)
+
+        # compute Kalman gain
+        S_omega = G @ self.omega_cov @ G_T + np.diag(n_omega)
+        S_accel = G @ self.accel_cov @ G_T + np.diag(n_accel)
+        K_omega = self.omega_cov @ G_T @ np.linalg.inv(S_omega)
+        K_accel = self.accel_cov @ G_T @ np.linalg.inv(S_accel)
+
+        # update covariance
+        self.omega_cov = (np.eye(6) - K_omega @ G) @ self.omega_cov
+        self.accel_cov = (np.eye(6) - K_accel @ G) @ self.accel_cov
+
+        # update state
+        d_omega = K_omega @ z_omega
+        d_accel = K_accel @ z_accel
+        self.omega_state += d_omega
+        self.accel_state += d_accel
+
+
+    def get_omega(self):
+        return self.omega_state[0: 3]
+
+
+    def get_accel(self):
+        return self.accel_state[0: 3]
+
+
+# class IMU_sensor_model(object):
+#     def __init__(self, w_alpha=0.1, w_jerk=1.0):
+#         self.t_update = 0.0
+#         self.omega_state = np.zeros(6) # omega, angular_accel
+#         self.accel_state = np.zeros(6)
+#         self.omega_cov = np.eye(6) * 1e-3
+#         self.accel_cov = np.eye(6) * 1e-3
+#         self.y_omega = np.zeros(3)
+#         self.y_accel = np.zeros(3)
+#         self.w_alpha = np.ones(3) * w_alpha**2
+#         self.w_jerk  = np.ones(3) * w_jerk**2
+#         self.A = np.zeros([6, 6])
+#         self.A[0: 3, 3: 6] = np.eye(3)
+#         self.B = np.zeros([6, 3])
+#         self.B[3: 6, 0: 3] = np.eye(3)
+#         self.C = np.eye(6)
+
+
+#     def propagate(self, dt):
+#         F = scipy.linalg.expm(self.A * dt)
+#         R = np.zeros([6, 6])
+
+#         # propagate omega
+#         self.omega_state = F @ self.omega_state
+#         R[3: 6, 3: 6] = np.diag(self.w_alpha)
+#         self.omega_cov = F @ self.omega_cov @ np.transpose(F) + R * dt
+
+#         # propagate accel
+#         self.accel_state = F @ self.accel_state
+#         R[3: 6, 3: 6] = np.diag(self.w_jerk)
+#         self.accel_cov = F @ self.accel_cov @ np.transpose(F) + R * dt
+
+
+#     def update(self, time, omega, accel, n_omega, n_accel):
+#         dt = time - self.t_update
+#         self.t_update = time
+
+#         alpha = (omega - self.y_omega) / dt
+#         jerk  = (accel - self.y_accel) / dt
+
+#         # compute error (innovation)
+#         z_omega = omega - self.omega_state[0: 3]
+#         z_accel = accel - self.accel_state[0: 3]
+#         z_alpha = alpha - self.omega_state[3: 6]
+#         z_jerk  = jerk  - self.accel_state[3: 6]
+
+#         # construct Jacobian
+#         G = self.C
+#         G_T = np.transpose(G)
+
+#         # compute Kalman gain
+#         R_omega = np.diag(np.concatenate([n_omega, 2 * n_omega]))
+#         R_accel = np.diag(np.concatenate([n_accel, 2 * n_accel]))
+
+#         S_omega = G @ self.omega_cov @ G_T + R_omega
+#         S_accel = G @ self.accel_cov @ G_T + R_accel
+#         K_omega = self.omega_cov @ G_T @ np.linalg.inv(S_omega)
+#         K_accel = self.accel_cov @ G_T @ np.linalg.inv(S_accel)
+
+#         # update covariance
+#         self.omega_cov = (np.eye(6) - K_omega @ G) @ self.omega_cov
+#         self.accel_cov = (np.eye(6) - K_accel @ G) @ self.accel_cov
+
+#         # update state
+#         d_omega = K_omega @ np.concatenate([z_omega, z_alpha])
+#         d_accel = K_accel @ np.concatenate([z_accel, z_jerk])
+#         self.omega_state += d_omega
+#         self.accel_state += d_accel
+
+
+#     def get_omega(self):
+#         return self.omega_state[0: 3]
+
+
+#     def get_accel(self):
+#         return self.accel_state[0: 3]
+
+
 ####################
 # simulated sensor #
 ####################

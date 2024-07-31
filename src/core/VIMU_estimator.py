@@ -9,7 +9,7 @@ from core.inertial_navigation_system import *
 class VIMU_estimator(inertial_navigation_system):
     '''estimator with single-IMU or virtual-IMU using vanilla IEKF'''
 
-    def __init__(self, T_iv, vel=None):
+    def __init__(self, T_iv, vel=None, pre_proc=True):
         super().__init__()
         T_vi = np.linalg.inv(T_iv)
         self.C_iv, self.r_vi_i = pose_to_rotation_and_translation(T_iv)
@@ -22,6 +22,8 @@ class VIMU_estimator(inertial_navigation_system):
         self.covariance = np.eye(15) * 1e-6
         self.time = 0.0
 
+        self.pre_proc = pre_proc
+
 
     def get_state_estimate(self):
         return self.C_iv, self.vel, self.r_vi_i
@@ -29,6 +31,72 @@ class VIMU_estimator(inertial_navigation_system):
 
     def get_state_covariance(self):
         return self.covariance
+
+
+    def propagate_IMU_state(self, id, dt):
+        '''propagate internal Kalman filter for tracking IMU states (omega and accel)'''
+        self.imu_model[id].propagate(dt)
+
+
+    def update_IMU_state(self, id, time, omega, accel, R=None):
+        '''update tracked IMU states (omega and accel) with latest IMU measurement'''
+        n_omega = self.imu[id].n_omega
+        n_accel = self.imu[id].n_accel
+        self.imu_model[id].update(time, omega, accel, n_omega, n_accel)
+
+
+    def average_IMU_state(self):
+        '''get average state of IMUs'''
+
+        N = len(self.imu_model)
+
+        avg_omega = np.zeros(3)
+        avg_accel = np.zeros(3)
+        sum_var_inv_omega = np.zeros(3)
+        sum_var_inv_accel = np.zeros(3)
+
+        for id in self.imu.keys():
+            T_sv = self.imu[id].T_sv
+            C_sv = T_sv[0: 3, 0: 3]
+            C_vs = np.linalg.inv(C_sv)
+            omega = self.imu_model[id].get_omega()
+            accel = self.imu_model[id].get_accel()
+            R_omega = self.imu_model[id].omega_cov[0: 3, 0: 3]
+            R_accel = self.imu_model[id].accel_cov[0: 3, 0: 3]
+            n_omega = np.diag(R_omega)
+            n_accel = np.diag(R_accel)
+            avg_omega += C_sv @ omega
+            avg_accel += C_sv @ accel
+            sum_var_inv_omega += 1 / n_omega**2
+            sum_var_inv_accel += 1 / n_accel**2
+
+        avg_omega = avg_omega / N
+        avg_accel = avg_accel / N
+        avg_n_omega = np.sqrt(1 / sum_var_inv_omega)
+        avg_n_accel = np.sqrt(1 / sum_var_inv_accel)
+
+        return avg_omega, avg_accel, avg_n_omega, avg_n_accel
+
+
+    def average_IMU_bias_drift(self):
+        '''get average bias drift of IMUs'''
+
+        sum_var_inv_omega = np.zeros(3)
+        sum_var_inv_accel = np.zeros(3)
+
+        for id in self.imu.keys():
+            T_sv = self.imu[id].T_sv
+            C_sv = T_sv[0: 3, 0: 3]
+            C_vs = np.linalg.inv(C_sv)
+            w_omega = C_vs @ self.imu[id].w_omega
+            w_accel = C_vs @ self.imu[id].w_accel
+            sum_var_inv_omega += 1 / w_omega**2
+            sum_var_inv_accel += 1 / w_accel**2
+
+        avg_w_omega = np.sqrt(1 / sum_var_inv_omega)
+        avg_w_accel = np.sqrt(1 / sum_var_inv_accel)
+
+        return avg_w_omega, avg_w_accel
 
 
     def handle_IMU_measurement(self, id, time, omega, accel, R=None):
@@ -44,7 +112,24 @@ class VIMU_estimator(inertial_navigation_system):
         dt = time - self.time
         self.time = time
 
-        # get measurement
+        if self.pre_proc:
+            # propagate all IMUs
+            for imu_id in self.imu.keys():
+                self.propagate_IMU_state(imu_id, dt)
+
+            # update current IMU
+            self.update_IMU_state(id, time, omega, accel)
+
+            # get measurement
+            omega, accel, n_omega, n_accel = self.average_IMU_state()
+            w_omega, w_accel = self.average_IMU_bias_drift()
+        else:
+            n_omega = self.imu[id].n_omega
+            n_accel = self.imu[id].n_accel
+            w_omega = self.imu[id].w_omega
+            w_accel = self.imu[id].w_accel
+
+        # get unbiased measurement
         omega = omega - self.b_omega
         accel = accel - self.b_accel
         accel_i = np.matmul(self.C_iv, accel) - np.array([0.0, 0.0, 9.81])
@@ -63,12 +148,12 @@ class VIMU_estimator(inertial_navigation_system):
 
         # construct noise covariance
         if R == None:
-            Q_n_omega = np.diag(self.imu[id].n_omega**2)
-            Q_n_accel = np.diag(self.imu[id].n_accel**2)
+            Q_n_omega = np.diag(n_omega**2)
+            Q_n_accel = np.diag(n_accel**2)
             Q_n = scipy.linalg.block_diag(Q_n_omega, Q_n_accel, np.zeros([3, 3]))
 
-            Q_b_omega = np.diag(self.imu[id].w_omega**2)
-            Q_b_accel = np.diag(self.imu[id].w_accel**2)
+            Q_b_omega = np.diag(w_omega**2)
+            Q_b_accel = np.diag(w_accel**2)
             Q_b = scipy.linalg.block_diag(Q_b_omega, Q_b_accel)
 
             R = scipy.linalg.block_diag(Q_n, Q_b)
