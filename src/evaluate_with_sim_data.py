@@ -102,16 +102,13 @@ def main():
     #################
 
     # run simulation
-    time_prev = 0
     for k in range(N):
         for imu in imu_sensors:
             measurement = imu.get_measurement(k)
             if measurement == None:
                 continue
-            time_now = k * dt
-            time_diff = time_now - time_prev
-            estimator.handle_IMU_measurement(imu.id, time_diff, measurement[0], measurement[1])
-            time_prev = time_now
+            time = k * dt
+            estimator.handle_IMU_measurement(imu.id, time, measurement[0], measurement[1])
 
         for cam in camera_sensors:
             measurement = cam.get_measurement(k)

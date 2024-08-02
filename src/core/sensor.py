@@ -44,6 +44,7 @@ class IMU_sensor(object):
         self.id = id
         dataset = scipy.io.loadmat(filename)
         self.period = 1
+        self.phase  = 0
 
         self.C_sv        = dataset["C_sv"]
         self.C_vs = np.linalg.inv(self.C_sv)
@@ -63,6 +64,11 @@ class IMU_sensor(object):
     def set_period(self, period):
         '''sample period in ms'''
         self.period = period
+
+
+    def set_phase(self, phase):
+        '''phase shift in sampling'''
+        self.phase = phase
 
 
     def get_id(self):
@@ -106,7 +112,7 @@ class IMU_sensor(object):
             - y_accel is in unit of (m/s^2)
         '''
 
-        if k % self.period != 0:
+        if k % self.period != self.phase:
             return None
 
         return self.y_omega_all[k, :], self.y_accel_all[k, :]
@@ -149,8 +155,8 @@ class VIMU_sensor(IMU_sensor):
     def get_noise(self):
         '''get average noise of omega and accel'''
 
-        sum_var_inv_omega = 0.0
-        sum_var_inv_accel = 0.0
+        sum_var_inv_omega = np.zeros(3)
+        sum_var_inv_accel = np.zeros(3)
 
         for imu in self.imu_all:
             n_omega = imu.C_vs @ imu.n_omega
@@ -167,8 +173,8 @@ class VIMU_sensor(IMU_sensor):
     def get_bias_drift(self):
         '''get average noise of omega and accel'''
 
-        sum_var_inv_omega = 0.0
-        sum_var_inv_accel = 0.0
+        sum_var_inv_omega = np.zeros(3)
+        sum_var_inv_accel = np.zeros(3)
 
         for imu in self.imu_all:
             w_omega = imu.C_vs @ imu.w_omega

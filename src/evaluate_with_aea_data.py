@@ -267,8 +267,6 @@ def main():
     # est_r_vi_i_all[0, :] = ref_r_vi_i_all[0, :]
 
     # Async iterator to deliver sensor data for all streams in device time order
-    t_prev = None
-    dt = 0.0
     done = False
     for data in provider.deliver_queued_sensor_data(deliver_option):
         # get device time
@@ -284,15 +282,10 @@ def main():
 
         # if label == "imu-left":
         if label == "imu-right":
-            if t_prev == None:
-                t_prev = t_curr
-                continue
-
-            dt = (t_curr - t_prev) / 1e9 # ns to sec
-            t_prev = t_curr
+            time = (t_curr - t0) / 1e9 # ns to sec
 
             omega, accel = get_imu_data(imu, data)
-            estimator.handle_IMU_measurement(label, dt, omega, accel)
+            estimator.handle_IMU_measurement(label, time, omega, accel)
 
         elif label == "camera-slam-left" or label == "camera-slam-right":
             C_iv = ref_C_iv_all[:, :, k]

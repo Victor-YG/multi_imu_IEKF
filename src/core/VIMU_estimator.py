@@ -20,6 +20,7 @@ class VIMU_estimator(inertial_navigation_system):
         self.b_omega = np.zeros(3)
         self.b_accel = np.zeros(3)
         self.covariance = np.eye(15) * 1e-6
+        self.time = 0.0
 
 
     def get_state_estimate(self):
@@ -30,15 +31,18 @@ class VIMU_estimator(inertial_navigation_system):
         return self.covariance
 
 
-    def handle_IMU_measurement(self, id, dt, omega, accel, R=None):
+    def handle_IMU_measurement(self, id, time, omega, accel, R=None):
         '''
         update state and covariance with IMU measurement
             - id: string id of the IMU sensor
-            - dt: time elapsed since previous update
+            - time: time elapsed since start of tracking
             - omega: angular velocity measurement
             - accel: linear acceleration measurement
             - R: noise covariance matrix
         '''
+
+        dt = time - self.time
+        self.time = time
 
         # get measurement
         omega = omega - self.b_omega
