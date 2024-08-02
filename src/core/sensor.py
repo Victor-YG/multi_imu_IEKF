@@ -33,7 +33,7 @@ class GPS_sensor_prop(object):
         self.var_n_z = var_n_z
 
 
-class IMU_sensor_model(object):
+class IMU_sensor_model_kalman(object):
     def __init__(self, w_alpha=0.1, w_jerk=1.0):
         self.omega_state = np.zeros(6) # omega, angular_accel
         self.accel_state = np.zeros(6)
@@ -96,6 +96,36 @@ class IMU_sensor_model(object):
 
     def get_accel(self):
         return self.accel_state[0: 3]
+
+
+class IMU_sensor_model_lowpass(object):
+    def __init__(self, s_omega=0.05, s_accel=0.05):
+        self.omega = np.zeros(3)
+        self.accel = np.zeros(3)
+        self.s_omega = s_omega
+        self.s_accel = s_accel
+        self.omega_cov = np.eye(3) * 1e-3
+        self.accel_cov = np.eye(3) * 1e-3
+
+
+    def propagate(self, dt):
+        return
+
+
+    def update(self, time, omega, accel, n_omega, n_accel):
+        self.omega = self.s_omega * omega + (1 - self.s_omega) * self.omega
+        self.accel = self.s_accel * accel + (1 - self.s_accel) * self.accel
+        self.omega_cov = np.diag(n_omega)
+        self.accel_cov = np.diag(n_accel)
+        return self.omega, self.accel
+
+
+    def get_omega(self):
+        return self.omega
+
+
+    def get_accel(self):
+        return self.accel
 
 
 ####################

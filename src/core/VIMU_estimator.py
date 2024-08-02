@@ -65,8 +65,8 @@ class VIMU_estimator(inertial_navigation_system):
             R_accel = self.imu_model[id].accel_cov[0: 3, 0: 3]
             n_omega = np.diag(R_omega)
             n_accel = np.diag(R_accel)
-            avg_omega += C_sv @ omega
-            avg_accel += C_sv @ accel
+            avg_omega += C_vs @ omega
+            avg_accel += C_vs @ accel
             sum_var_inv_omega += 1 / n_omega**2
             sum_var_inv_accel += 1 / n_accel**2
 
