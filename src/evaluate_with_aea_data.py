@@ -19,8 +19,8 @@ from core.VIMU_estimator import *
 
 sample_folder = "../../datasets/aria/loc1_script1_seq1_rec1"
 
-# n_omega_l = 8.73e-5 # (rad/s) / sqrt(Hz)
-# n_accel_l = 8.83e-4 # (m/s^2) / sqrt(Hz)
+n_omega_l = 8.73e-5 # (rad/s) / sqrt(Hz)
+n_accel_l = 8.83e-4 # (m/s^2) / sqrt(Hz)
 # w_omega_l = 0.001 # dps
 # w_accel_l = 0.000028 # g
 
@@ -52,24 +52,36 @@ def load_and_config_data_provider(folder):
     return provider, deliver_option
 
 
-def load_closed_loop_trajectory(folder, k0=0):
+def load_closed_loop_trajectory(folder, T_vehicle_to_target=None, k0=0):
     closed_loop_path = f"{folder}/mps/slam/closed_loop_trajectory.csv"
     trajectory = mps.read_closed_loop_trajectory(closed_loop_path)
     t0 = trajectory[k0].tracking_timestamp.seconds * 1e9 + trajectory[k0].tracking_timestamp.microseconds * 1e3
+
+    if T_vehicle_to_target is None:
+        T_vehicle_to_target = np.eye(4)
 
     N = len(trajectory) - k0
     ref_C_iv_all = np.zeros([3, 3, N])
     ref_r_vi_i_all = np.zeros([N, 3])
     for i in range(N):
         T_iv = trajectory[i].transform_world_device.to_matrix()
+        T_iv = T_iv @ T_vehicle_to_target
         C_iv = np.copy(T_iv[0: 3, 0: 3])
         r_vi_i = np.copy(T_iv[0: 3, 3])
         ref_C_iv_all[:, :, i] = C_iv
         ref_r_vi_i_all[i, :]  = r_vi_i
 
-    v0 = np.array(trajectory[k0].device_linear_velocity_device)
+    v0_i = np.array(trajectory[k0].device_linear_velocity_device)
     omega_0 = np.array(trajectory[k0].angular_velocity_device)
-    return ref_C_iv_all[:, :, k0:], ref_r_vi_i_all[k0: ], v0, omega_0, t0, N
+
+    # compute initial velocity (target frame)
+    r_sv_v = T_vehicle_to_target[0: 3, 3]
+    v0 = ref_C_iv_all[:, :, 0] @ (v0_i + np.cross(omega_0, r_sv_v))
+
+    # # plot closed-loop trajectory
+    # plot_trajectory(ref_r_vi_i_all, np.zeros_like(ref_r_vi_i_all))
+
+    return ref_C_iv_all[:, :, k0:], ref_r_vi_i_all[k0: ], v0, t0, N
 
 
 def load_points_filtered_by_confidence(folder, inverse_distance_std_threshold=0.001, distance_std_threshold=0.0001):
@@ -81,8 +93,36 @@ def load_points_filtered_by_confidence(folder, inverse_distance_std_threshold=0.
     #     print(point.position_world)
     # exit()
 
+    # # plot filtered points
+    # M = len(filtered_points)
+    # pt = np.zeros([M, 3])
+
+    # for i in range(M):
+    #     pt[i, 0] = filtered_points[i].position_world[0]
+    #     pt[i, 1] = filtered_points[i].position_world[1]
+    #     pt[i, 2] = filtered_points[i].position_world[2]
+    # fig = plt.scatter(pt[:, 0], pt[:, 1], c='b')
+    # plt.show()
+
+    # fig = plt.scatter(ref_r_vi_i_all[:, 0], ref_r_vi_i_all[:, 1], c='g')
+    # plt.show()
+
     print(f"[INFO]: loaded {len(filtered_points)} points.")
     return filtered_points
+
+
+def load_imu(provider, label):
+    imu = provider.get_device_calibration().get_imu_calib(label)
+    T_vs = np.copy(imu.get_transform_device_imu().to_matrix())
+    # bias_omega = imu.raw_to_rectified_gyro(np.zeros(3))
+    # bias_accel = imu.raw_to_rectified_accel(np.zeros(3))
+    return imu, T_vs
+
+
+def load_camera(provider, label):
+    cam_calib = provider.get_device_calibration().get_camera_calib(label)
+    T_vc = np.copy(cam_calib.get_transform_device_camera().to_matrix())
+    return cam_calib, T_vc
 
 
 def get_imu_data(imu, data):
@@ -170,63 +210,39 @@ def main():
     args.aea = sample_folder
     provider, deliver_option = load_and_config_data_provider(args.aea)
 
-    # load closed-loop trajectory
-    ref_C_iv_all, ref_r_vi_i_all, v0, omega_0, t0, N = load_closed_loop_trajectory(args.aea, 1000)
-
-    # read points and observation from mps
-    points = load_points_filtered_by_confidence(args.aea)
-
     # get imu extrinsic calibration
-    imu_l = provider.get_device_calibration().get_imu_calib("imu-left")
-    T_vs_l = np.copy(imu_l.get_transform_device_imu().to_matrix())
-    r_sv_v_l = T_vs_l[0: 3, 3]
-    T_sv_l = np.linalg.inv(T_vs_l)
-    bias_omega_l = imu_l.raw_to_rectified_gyro(np.zeros(3))
-    bias_accel_l = imu_l.raw_to_rectified_accel(np.zeros(3))
-    imu_r = provider.get_device_calibration().get_imu_calib("imu-right")
-    T_vs_r = np.copy(imu_r.get_transform_device_imu().to_matrix())
-    T_sv_r = np.linalg.inv(T_vs_r)
-    r_sv_v_r = T_vs_r[0: 3, 3]
+    # imu, T_vs = load_imu(provider, "imu-left")
+    imu, T_vs = load_imu(provider, "imu-right")
+    r_sv_v = T_vs[0: 3, 3]
+    T_sv = np.linalg.inv(T_vs)
 
-    # choose left vs right IMU
-    imu = imu_r
-    T_sv = T_sv_r
-    r_sv_v = r_sv_v_r
+    # load closed-loop trajectory
+    ref_C_iv_all, ref_r_vi_i_all, v0, t0, N = load_closed_loop_trajectory(args.aea, T_vs, 1000)
 
-    # compute initial velocity (inertial frame)
-    v0_s_i = ref_C_iv_all[:, :, 0] @ (v0 + np.cross(omega_0, r_sv_v))
+    # # read points and observation from mps
+    # points = load_points_filtered_by_confidence(args.aea)
 
     # get camera extrinsic calibration
-    cam_calib = provider.get_device_calibration().get_camera_calib("camera-slam-left")
-    T_vc_l = np.copy(cam_calib.get_transform_device_camera().to_matrix())
-    T_cv_l = np.linalg.inv(T_vc_l)
+    cam_calib_l, T_vc_l = load_camera(provider, "camera-slam-left")
+    cam_calib_r, T_vc_r = load_camera(provider, "camera-slam-right")
+    T_cv_l = np.linalg.inv(T_vc_l) @ T_vs # from this point on vehicle frame is at sensor frame
+    T_cv_r = np.linalg.inv(T_vc_r) @ T_vs
 
-    cam_calib = provider.get_device_calibration().get_camera_calib("camera-slam-right")
-    T_vc_r = np.copy(cam_calib.get_transform_device_camera().to_matrix())
-    T_cv_r = np.linalg.inv(T_vc_r)
-
+    # setup camera simulator and get intrinsics
     fx = 150
     img_w = 512
     img_h = 512
     camera = calibration.get_linear_camera_calibration(img_w, img_h, fx)
     cx, cy = camera.get_principal_point()
+    K = np.array([[fx, 0.0, cx], [0.0, fx, cy], [0.0, 0.0, 1.0]])
 
     # TODO::single IMU for now; update implementation for VIMU
     T_iv_0 = rotation_and_translation_to_pose(ref_C_iv_all[:, :, 0], ref_r_vi_i_all[0, :])
-    T_is_0 = T_iv_0 @ T_vs_r
-    estimator = VIMU_estimator(T_is_0, v0_s_i)
+    estimator = VIMU_estimator(T_iv_0, v0)
     # estimator.add_IMU("imu-left", IMU_sensor_prop(np.eye(4), n_omega_l * np.ones(3), n_accel_l * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
-    # estimator.add_IMU("imu-right", IMU_sensor_prop(np.eye(4), n_omega_r * np.ones(3), n_accel_r * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
-    estimator.add_IMU("imu-right", IMU_sensor_prop(np.eye(4), 0.1 * np.ones(3), 0.2 * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
-    T_cs_l = T_cv_l @ T_vs_r
-    T_cs_r = T_cv_r @ T_vs_r
-    K = np.array([[fx, 0.0, cx], [0.0, fx, cy], [0.0, 0.0, 1.0]])
-    # estimator.add_camera("camera-slam-left",  camera_sensor_prop(T_cs_l, K, 0.000001, 0.000001))
-    # estimator.add_camera("camera-slam-right", camera_sensor_prop(T_cs_r, K, 0.000001, 0.000001))
-    estimator.add_camera("camera-slam-left",  camera_sensor_prop(T_cs_l, K, 0.1, 0.1))
-    estimator.add_camera("camera-slam-right", camera_sensor_prop(T_cs_r, K, 0.1, 0.1))
-    # estimator.add_camera("camera-slam-left",  camera_sensor_prop(np.eye(4), K, 0.1, 0.1))
-    # estimator.add_camera("camera-slam-right", camera_sensor_prop(np.eye(4), K, 0.1, 0.1))
+    estimator.add_IMU("imu-right", IMU_sensor_prop(np.eye(4), n_omega_r * np.ones(3), n_accel_r * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
+    estimator.add_camera("camera-slam-left",  camera_sensor_prop(T_cv_l, K, 0.1, 0.1))
+    estimator.add_camera("camera-slam-right", camera_sensor_prop(T_cv_r, K, 0.1, 0.1))
 
     # if args.algo == "VIMU":
     #     # create virtual IMU (reference frame denoted as z)
@@ -258,16 +274,12 @@ def main():
 
     est_C_iv_all = np.zeros_like(ref_C_iv_all)
     est_r_vi_i_all = np.zeros_like(ref_r_vi_i_all)
-    C_is_est, _, r_si_i_est = estimator.get_state_estimate()
-    T_is_est = rotation_and_translation_to_pose(C_is_est, r_si_i_est)
-    T_iv_est = T_is_est @ T_sv
-    est_C_iv_all[:, :, 0] = T_iv_est[0: 3, 0: 3]
-    est_r_vi_i_all[0, :] = T_iv_est[0: 3, 3]
-    # est_C_iv_all[:, :, 0] = np.copy(ref_C_iv_all[:, :, 0])
-    # est_r_vi_i_all[0, :] = ref_r_vi_i_all[0, :]
+    C_iv_est, _, r_vi_i_est = estimator.get_state_estimate()
+    T_iv_est_0 = rotation_and_translation_to_pose(C_iv_est, r_vi_i_est)
+    est_C_iv_all[:, :, 0] = T_iv_est_0[0: 3, 0: 3]
+    est_r_vi_i_all[0, :]  = T_iv_est_0[0: 3, 3]
 
     # Async iterator to deliver sensor data for all streams in device time order
-    done = False
     for data in provider.deliver_queued_sensor_data(deliver_option):
         # get device time
         t_curr = data.get_time_ns(TimeDomain.DEVICE_TIME)
@@ -288,31 +300,21 @@ def main():
             estimator.handle_IMU_measurement(label, time, omega, accel)
 
         elif label == "camera-slam-left" or label == "camera-slam-right":
+        # elif label == "camera-slam-right":
             C_iv = ref_C_iv_all[:, :, k]
             r_vi_i = ref_r_vi_i_all[k, :]
             T_iv = rotation_and_translation_to_pose(C_iv, r_vi_i)
-            T_cs = estimator.camera[label].T_cv
-            T_ci = T_cs @ T_sv @ np.linalg.inv(T_iv)
-            # print(T_ci)
+            T_cv = estimator.camera[label].T_cv
+            T_ci = T_cv @ np.linalg.inv(T_iv)
 
-            # pt_3d, kp_2d = gen_cam_data(camera, T_ci, points)
             pt_3d, kp_2d = sim_cam_data(camera, T_ci, 400)
-            if pt_3d is None:
-                print("[WARN]: no visible landmark detected")
-                continue
-            # else:
-                # print(f"[INFO]: detected {pt_3d.shape[0]} landmarks")
-
             estimator.handle_camera_measurement(label, pt_3d, kp_2d)
-            done = True
-
         else:
             continue
             print("[FAIL]: unexpected sensor data received.")
 
-        C_is, __, r_si_i = estimator.get_state_estimate()
-        T_is = rotation_and_translation_to_pose(C_is, r_si_i)
-        T_iv_est = T_is @ T_sv
+        C_iv, __, r_vi_i = estimator.get_state_estimate()
+        T_iv_est = rotation_and_translation_to_pose(C_iv, r_vi_i)
         est_C_iv_all[:, :, k] = np.copy(T_iv_est[0: 3, 0: 3])
         r_vi_i_est = np.copy(T_iv_est[0: 3, 3])
         est_r_vi_i_all[k, :] = r_vi_i_est
@@ -322,20 +324,12 @@ def main():
             print(f"[WARN]: trajectory diverged from ground truth at k = {k}")
             break
 
-        # if k < 30000:
-        #     done = False
-        # else:
-        #     done = True
-
-        # if done:
+        # if k > 3000:
         #     break
 
     ################
     # plot results #
     ################
-    #TODO::plot closed-loop trajectory
-    # # ref_r_vi_i_all = ref_r_vi_i_all[10000: 20000, :]
-    # plot_trajectory(ref_r_vi_i_all, np.zeros_like(ref_r_vi_i_all))
 
     for i in range(k - 1):
         if np.linalg.norm(est_r_vi_i_all[i, :]) == 0.0:
@@ -343,20 +337,6 @@ def main():
 
     # plot_trajectory(ref_r_vi_i_all, est_r_vi_i_all)
     plot_trajectory(ref_r_vi_i_all[0: k - 1, :], est_r_vi_i_all[0: k - 1, :])
-
-    # # plot filtered points
-    # M = len(points)
-    # pt = np.zeros([M, 3])
-
-    # for i in range(M):
-    #     pt[i, 0] = points[i].position_world[0]
-    #     pt[i, 1] = points[i].position_world[1]
-    #     pt[i, 2] = points[i].position_world[2]
-    # fig = plt.scatter(pt[:, 0], pt[:, 1], c='b')
-    # plt.show()
-
-    # fig = plt.scatter(ref_r_vi_i_all[:, 0], ref_r_vi_i_all[:, 1], c='g')
-    # plt.show()
 
 
     print("[INFO]: Done")
