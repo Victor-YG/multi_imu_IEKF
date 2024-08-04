@@ -114,6 +114,24 @@ def compute_measurement_model_jocobian(T_vi, T_cv, fx, fy, cx, cy, x, y, z, u, v
     return e_y, G
 
 
+def plot_trajectory_and_initial_velocity(trajectory, v0):
+    x0 = trajectory[0, 0]
+    y0 = trajectory[0, 1]
+    z0 = trajectory[0, 2]
+    x1 = x0 + 1 * v0[0]
+    y1 = y0 + 1 * v0[1]
+    z1 = z0 + 1 * v0[2]
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+    ax.plot(trajectory[:, 0], trajectory[:, 1], trajectory[:, 2], c='g', label="trajectory")
+    ax.plot([x0, x1], [y0, y1], [z0, z1])
+    ax.set_xlabel("X-axis")
+    ax.set_ylabel("Y-axis")
+    ax.set_zlabel("Z-axis")
+    plt.show()
+
+
 def plot_trajectory(trajectory_tru, trajectory_est):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
