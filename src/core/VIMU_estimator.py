@@ -86,6 +86,50 @@ class VIMU_estimator(inertial_navigation_system):
         return avg_w_omega, avg_w_accel
 
 
+    def compute_process_model_jocobian(self, omega, accel):
+        A = np.zeros([15, 15])
+        omega_vee = get_lifted_form(omega)
+        accel_vee = get_lifted_form(accel)
+
+        A[0:3, 0:3] = -omega_vee
+        A[3:6, 3:6] = -omega_vee
+        A[6:9, 6:9] = -omega_vee
+        A[3:6, 0:3] = -accel_vee
+        A[6:9, 3:6] = np.eye(3)
+
+        A[0:6, 9:15] = -np.eye(6)
+        return A
+
+
+    def compute_measurement_model_jocobian(self, T_vi, T_cv, fx, fy, cx, cy, x, y, z, u, v):
+        e_y = np.zeros(2)
+        p_i = np.array([x, y, z, 1.0])
+        p_v = T_vi @ p_i
+        p_c = T_cv @ p_v
+
+        y_c  = np.array([u, v])
+        y_op = np.zeros(2)
+        y_op[0] = fx * p_c[0] / p_c[2] + cx # u
+        y_op[1] = fy * p_c[1] / p_c[2] + cy # v
+        e_y = y_c - y_op
+
+        Z_jk = get_circle_dot_for_SE2_3(p_v)
+        Z_jk = T_cv @ Z_jk
+
+        S_jk = np.zeros([2, 3])
+        S_jk[0, 0] =  fx / p_c[2]
+        S_jk[0, 2] = -fx * p_c[0] / p_c[2]**2
+        S_jk[1, 1] =  fy / p_c[2]
+        S_jk[1, 2] = -fy * p_c[1] / p_c[2]**2
+        # print(f"S_jk = {S_jk}")
+
+        D_T = np.zeros([3, 4])
+        D_T[0: 3, 0: 3] = np.eye(3)
+        G = -S_jk @ D_T @ Z_jk
+
+        return e_y, G
+
+
     def handle_IMU_measurement(self, id, time, omega, accel, R=None):
         '''
         update state and covariance with IMU measurement
@@ -125,7 +169,7 @@ class VIMU_estimator(inertial_navigation_system):
         self.vel = self.vel + 1.0 * accel_i * dt
 
         # compute process model Jacobian
-        A = compute_process_model_jocobian(omega, accel)
+        A = self.compute_process_model_jocobian(omega, accel)
         F = scipy.linalg.expm(A * dt)
 
         # construct noise covariance
@@ -178,7 +222,7 @@ class VIMU_estimator(inertial_navigation_system):
             z = pt_3d[m, 2]
             u = kp_2d[m, 0]
             v = kp_2d[m, 1]
-            z_km, G_km = compute_measurement_model_jocobian(T_vi, T_cv, fx, fy, cx, cy, x, y, z, u, v)
+            z_km, G_km = self.compute_measurement_model_jocobian(T_vi, T_cv, fx, fy, cx, cy, x, y, z, u, v)
             z_k[m * 2 : (m + 1) * 2] = z_km
             G_k[m * 2 : (m + 1) * 2, 0: 9] = G_km
             G_k_T = np.transpose(G_k)
