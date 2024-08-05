@@ -237,7 +237,7 @@ def main():
     K = np.array([[fx, 0.0, cx], [0.0, fx, cy], [0.0, 0.0, 1.0]])
 
     T_iv_0 = rotation_and_translation_to_pose(ref_C_iv_all[:, :, 0], ref_r_vi_i_all[0, :])
-    estimator = VIMU_estimator(T_iv_0, v0, pre_proc="lowpass")
+    estimator = VIMU_estimator(T_iv_0, v0, pre_proc="None")
     # estimator.add_IMU("imu-left", IMU_sensor_prop(np.eye(4), n_omega_l * np.ones(3), n_accel_l * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
     estimator.add_IMU("imu-right", IMU_sensor_prop(np.eye(4), n_omega_r * np.ones(3), n_accel_r * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
     estimator.add_camera("camera-slam-left",  camera_sensor_prop(T_cv_l, K, 0.1, 0.1))

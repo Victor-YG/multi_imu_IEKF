@@ -104,17 +104,12 @@ class VIMU_estimator(inertial_navigation_system):
             for imu_id in self.imu.keys():
                 self.propagate_IMU_model(imu_id, dt)
 
-            # update current IMU
-            self.update_IMU_model(id, time, omega, accel)
+        # update current IMU
+        self.update_IMU_model(id, time, omega, accel)
 
-            # get measurement
-            omega, accel, n_omega, n_accel = self.average_IMU_state()
-            w_omega, w_accel = self.average_IMU_bias_drift()
-        else:
-            n_omega = self.imu[id].n_omega
-            n_accel = self.imu[id].n_accel
-            w_omega = self.imu[id].w_omega
-            w_accel = self.imu[id].w_accel
+        # get measurement
+        omega, accel, n_omega, n_accel = self.average_IMU_state()
+        w_omega, w_accel = self.average_IMU_bias_drift()
 
         # get unbiased measurement
         omega = omega - self.b_omega

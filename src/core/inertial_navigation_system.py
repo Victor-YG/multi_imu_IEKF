@@ -43,6 +43,8 @@ class inertial_navigation_system(object):
             self.imu_model[id] = IMU_sensor_model_kalman()
         elif self.pre_proc == "lowpass":
             self.imu_model[id] = IMU_sensor_model_lowpass()
+        else:
+            self.imu_model[id] = IMU_sensor_model_lowpass(1.0, 1.0)
 
 
     def add_IMU(self, id, imu_sensor_prop):
@@ -51,6 +53,8 @@ class inertial_navigation_system(object):
             self.imu_model[id] = IMU_sensor_model_kalman()
         elif self.pre_proc == "lowpass":
             self.imu_model[id] = IMU_sensor_model_lowpass()
+        else:
+            self.imu_model[id] = IMU_sensor_model_lowpass(1.0, 1.0)
 
 
     def add_camera(self, id, T_cv, K, var_n_u, var_n_v):
