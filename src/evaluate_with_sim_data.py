@@ -15,7 +15,7 @@ def main():
     parser.add_argument("--cam",        help="Path to .mat file with the simulated camera data",     default=[], action="append", required=False)
     parser.add_argument("--gps",        help="Path to .mat file with the simulated gps data",        default=[], action="append", required=False)
     parser.add_argument("--algo",       help="State estimation algorithm to evaluate (VIMU or CM-IMU)", default="VIMU")
-    parser.add_argument("-pre_proc",    help="Use Kalman Filter to time average over the IMU measurement", action="store_true", default=False)
+    parser.add_argument("-pre_proc",    help="Use Kalman Filter to time average over the IMU measurement", default="None")
     args = parser.parse_args()
 
     estimator = None
@@ -65,7 +65,7 @@ def main():
     elif args.algo == "MIMU":
         # multiple IMU with asynchronous measurement
         virtual_imu = VIMU_sensor("vimu", args.imu)
-        estimator = VIMU_estimator(virtual_imu.get_transformation(), pre_proc=True)
+        estimator = VIMU_estimator(virtual_imu.get_transformation(), pre_proc="kalman")
 
         for i in range(len(args.imu)):
             imu = IMU_sensor(f"imu-{i}", args.imu[0])
@@ -140,7 +140,7 @@ def main():
             estimator.handle_GPS_measurement(gps.id, measurement)
 
         # get current state estimate and uncertainty
-        C_iv, vel, r_vi_i = estimator.get_state_estimate()
+        C_iv, r_vi_i = estimator.get_state_estimate()
         covariance = estimator.get_state_covariance()
 
         # compute error

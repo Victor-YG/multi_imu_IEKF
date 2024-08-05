@@ -9,40 +9,27 @@ from core.inertial_navigation_system import *
 class VIMU_estimator(inertial_navigation_system):
     '''estimator with single-IMU or virtual-IMU using vanilla IEKF'''
 
-    def __init__(self, T_iv, vel=None, pre_proc=True):
-        super().__init__()
-        T_vi = np.linalg.inv(T_iv)
+    def __init__(self, T_iv, vel=None, pre_proc="None"):
+        super().__init__(pre_proc)
         self.C_iv, self.r_vi_i = pose_to_rotation_and_translation(T_iv)
+
         if vel is not None:
             self.vel = vel
         else:
             self.vel = np.zeros(3)
+
         self.b_omega = np.zeros(3)
         self.b_accel = np.zeros(3)
         self.covariance = np.eye(15) * 1e-6
         self.time = 0.0
 
-        self.pre_proc = pre_proc
-
 
     def get_state_estimate(self):
-        return self.C_iv, self.vel, self.r_vi_i
+        return self.C_iv, self.r_vi_i
 
 
     def get_state_covariance(self):
         return self.covariance
-
-
-    def propagate_IMU_state(self, id, dt):
-        '''propagate internal Kalman filter for tracking IMU states (omega and accel)'''
-        self.imu_model[id].propagate(dt)
-
-
-    def update_IMU_state(self, id, time, omega, accel, R=None):
-        '''update tracked IMU states (omega and accel) with latest IMU measurement'''
-        n_omega = self.imu[id].n_omega
-        n_accel = self.imu[id].n_accel
-        self.imu_model[id].update(time, omega, accel, n_omega, n_accel)
 
 
     def average_IMU_state(self):
@@ -112,13 +99,13 @@ class VIMU_estimator(inertial_navigation_system):
         dt = time - self.time
         self.time = time
 
-        if self.pre_proc:
+        if self.pre_proc != "None":
             # propagate all IMUs
             for imu_id in self.imu.keys():
-                self.propagate_IMU_state(imu_id, dt)
+                self.propagate_IMU_model(imu_id, dt)
 
             # update current IMU
-            self.update_IMU_state(id, time, omega, accel)
+            self.update_IMU_model(id, time, omega, accel)
 
             # get measurement
             omega, accel, n_omega, n_accel = self.average_IMU_state()

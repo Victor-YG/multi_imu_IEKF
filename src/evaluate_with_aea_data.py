@@ -195,7 +195,6 @@ def sim_cam_data(camera, T_ci, M=10):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--aea",  help="Path to Aria Everyday Activities data folder", default=sample_folder, required=False)
-    parser.add_argument("--algo", help="State estimation algorithm to evaluate (VIMU or CM-IMU)", default="VIMU")
     # parser.add_argument("--out",  help="Output folder to dump evaluation result", default=None, required=True)
     args = parser.parse_args()
 
@@ -237,9 +236,8 @@ def main():
     cx, cy = camera.get_principal_point()
     K = np.array([[fx, 0.0, cx], [0.0, fx, cy], [0.0, 0.0, 1.0]])
 
-    # TODO::single IMU for now; update implementation for VIMU
     T_iv_0 = rotation_and_translation_to_pose(ref_C_iv_all[:, :, 0], ref_r_vi_i_all[0, :])
-    estimator = VIMU_estimator(T_iv_0, v0, pre_proc=False)
+    estimator = VIMU_estimator(T_iv_0, v0, pre_proc="lowpass")
     # estimator.add_IMU("imu-left", IMU_sensor_prop(np.eye(4), n_omega_l * np.ones(3), n_accel_l * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
     estimator.add_IMU("imu-right", IMU_sensor_prop(np.eye(4), n_omega_r * np.ones(3), n_accel_r * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
     estimator.add_camera("camera-slam-left",  camera_sensor_prop(T_cv_l, K, 0.1, 0.1))
@@ -251,7 +249,7 @@ def main():
 
     est_C_iv_all = np.zeros_like(ref_C_iv_all)
     est_r_vi_i_all = np.zeros_like(ref_r_vi_i_all)
-    C_iv_est, _, r_vi_i_est = estimator.get_state_estimate()
+    C_iv_est, r_vi_i_est = estimator.get_state_estimate()
     est_C_iv_all[:, :, 0] = C_iv_est
     est_r_vi_i_all[0, :]  = r_vi_i_est
 
@@ -276,7 +274,6 @@ def main():
             estimator.handle_IMU_measurement(label, time, omega, accel)
 
         elif label == "camera-slam-left" or label == "camera-slam-right":
-        # elif label == "camera-slam-right":
             C_iv = ref_C_iv_all[:, :, k]
             r_vi_i = ref_r_vi_i_all[k, :]
             T_iv = rotation_and_translation_to_pose(C_iv, r_vi_i)
@@ -289,7 +286,7 @@ def main():
             continue
             print("[FAIL]: unexpected sensor data received.")
 
-        C_iv, __, r_vi_i = estimator.get_state_estimate()
+        C_iv, r_vi_i = estimator.get_state_estimate()
         T_iv_est = rotation_and_translation_to_pose(C_iv, r_vi_i)
         est_C_iv_all[:, :, k] = np.copy(T_iv_est[0: 3, 0: 3])
         r_vi_i_est = np.copy(T_iv_est[0: 3, 3])

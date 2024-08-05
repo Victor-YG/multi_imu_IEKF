@@ -6,10 +6,12 @@ from core.sensor import *
 class inertial_navigation_system(object):
     '''Interface for IMU-based state estimator'''
 
-    def __init__(self):
+    def __init__(self, pre_proc="None"):
         self.C_vi = None
         self.r_vi_i = None
         self.covariance = None
+
+        self.pre_proc = pre_proc
 
         self.imu = dict()
         self.imu_model = dict()
@@ -37,14 +39,18 @@ class inertial_navigation_system(object):
         '''
 
         self.imu[id] = IMU_sensor_prop(id, T_sv, n_omega, n_accel, w_omega, w_accel)
-        # self.imu_model[id] = IMU_sensor_model_kalman()
-        self.imu_model[id] = IMU_sensor_model_lowpass()
+        if self.pre_proc == "kalman":
+            self.imu_model[id] = IMU_sensor_model_kalman()
+        elif self.pre_proc == "lowpass":
+            self.imu_model[id] = IMU_sensor_model_lowpass()
 
 
     def add_IMU(self, id, imu_sensor_prop):
         self.imu[id] = imu_sensor_prop
-        # self.imu_model[id] = IMU_sensor_model_kalman()
-        self.imu_model[id] = IMU_sensor_model_lowpass()
+        if self.pre_proc == "kalman":
+            self.imu_model[id] = IMU_sensor_model_kalman()
+        elif self.pre_proc == "lowpass":
+            self.imu_model[id] = IMU_sensor_model_lowpass()
 
 
     def add_camera(self, id, T_cv, K, var_n_u, var_n_v):
@@ -77,6 +83,18 @@ class inertial_navigation_system(object):
 
     def add_GPS(self, id, gps_sensor_prop):
         self.gps[id] = gps_sensor_prop
+
+
+    def propagate_IMU_model(self, id, dt):
+        '''propagate internal filter for tracking IMU measurement (omega and accel)'''
+        self.imu_model[id].propagate(dt)
+
+
+    def update_IMU_model(self, id, time, omega, accel, R=None):
+        '''update tracked IMU measurement (omega and accel) with latest IMU measurement'''
+        n_omega = self.imu[id].n_omega
+        n_accel = self.imu[id].n_accel
+        self.imu_model[id].update(time, omega, accel, n_omega, n_accel)
 
 
     def handle_IMU_measurement(self, id, dt, omega, accel, R=None):
