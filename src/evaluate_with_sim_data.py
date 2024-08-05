@@ -5,6 +5,7 @@ import argparse
 
 import scipy.io
 
+from core.metrics import *
 from core.VIMU_estimator import *
 
 
@@ -15,7 +16,7 @@ def main():
     parser.add_argument("--cam",        help="Path to .mat file with the simulated camera data",     default=[], action="append", required=False)
     parser.add_argument("--gps",        help="Path to .mat file with the simulated gps data",        default=[], action="append", required=False)
     parser.add_argument("--algo",       help="State estimation algorithm to evaluate (VIMU or CM-IMU)", default="VIMU")
-    parser.add_argument("-pre_proc",    help="Use Kalman Filter to time average over the IMU measurement", default="None")
+    parser.add_argument("--pre_proc",   help="Use Kalman Filter to time average over the IMU measurement", default="None")
     args = parser.parse_args()
 
     estimator = None
@@ -154,6 +155,12 @@ def main():
     ################
     # plot results #
     ################
+    mae, mse, rmse = compute_metrics(pose_err_all)
+    np.set_printoptions(precision=8)
+    print(f"[INFO]:  mae = { mae}")
+    print(f"[INFO]: rmse = {rmse}")
+    print(f"[INFO]:  mse = { mse}")
+
     # plot trajectory
     plot_trajectory(r_vi_i_all[0: N, :], pos_est_all[0: N, :])
 
