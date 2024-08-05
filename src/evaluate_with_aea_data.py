@@ -59,22 +59,22 @@ def load_closed_loop_trajectory(folder, k0=0):
 
     # get all trajectory waypoints
     N = len(trajectory)
-    ref_C_iv_all = np.zeros([3, 3, N])
-    ref_r_vi_i_all = np.zeros([N, 3])
+    ref_C_ib_all = np.zeros([3, 3, N])
+    ref_r_bi_i_all = np.zeros([N, 3])
     for i in range(N):
-        T_iv = trajectory[i].transform_world_device.to_matrix()
-        C_iv = np.copy(T_iv[0: 3, 0: 3])
-        r_vi_i = np.copy(T_iv[0: 3, 3])
-        ref_C_iv_all[:, :, i] = C_iv
-        ref_r_vi_i_all[i, :]  = r_vi_i
+        T_ib = trajectory[i].transform_world_device.to_matrix()
+        C_ib = np.copy(T_ib[0: 3, 0: 3])
+        r_bi_i = np.copy(T_ib[0: 3, 3])
+        ref_C_ib_all[:, :, i] = C_ib
+        ref_r_bi_i_all[i, :]  = r_bi_i
 
     v0 = np.array(trajectory[k0].device_linear_velocity_device)
     omega_0 = np.array(trajectory[k0].angular_velocity_device)
 
     # # plot closed-loop trajectory
-    # plot_trajectory_and_initial_velocity(ref_r_vi_i_all, v0)
+    # plot_trajectory_and_initial_velocity(ref_r_bi_i_all, v0)
 
-    return ref_C_iv_all[:, :, k0:], ref_r_vi_i_all[k0: ], v0, omega_0, t0, N
+    return ref_C_ib_all[:, :, k0:], ref_r_bi_i_all[k0: ], v0, omega_0, t0, N
 
 
 def load_points_filtered_by_confidence(folder, inverse_distance_std_threshold=0.001, distance_std_threshold=0.0001):
@@ -97,7 +97,7 @@ def load_points_filtered_by_confidence(folder, inverse_distance_std_threshold=0.
     # fig = plt.scatter(pt[:, 0], pt[:, 1], c='b')
     # plt.show()
 
-    # fig = plt.scatter(ref_r_vi_i_all[:, 0], ref_r_vi_i_all[:, 1], c='g')
+    # fig = plt.scatter(ref_r_bi_i_all[:, 0], ref_r_bi_i_all[:, 1], c='g')
     # plt.show()
 
     print(f"[INFO]: loaded {len(filtered_points)} points.")
@@ -106,16 +106,16 @@ def load_points_filtered_by_confidence(folder, inverse_distance_std_threshold=0.
 
 def load_imu(provider, label):
     imu = provider.get_device_calibration().get_imu_calib(label)
-    T_vs = np.copy(imu.get_transform_device_imu().to_matrix())
+    T_bs = np.copy(imu.get_transform_device_imu().to_matrix())
     # bias_omega = imu.raw_to_rectified_gyro(np.zeros(3))
     # bias_accel = imu.raw_to_rectified_accel(np.zeros(3))
-    return imu, T_vs
+    return imu, T_bs
 
 
 def load_camera(provider, label):
     cam_calib = provider.get_device_calibration().get_camera_calib(label)
-    T_vc = np.copy(cam_calib.get_transform_device_camera().to_matrix())
-    return cam_calib, T_vc
+    T_bc = np.copy(cam_calib.get_transform_device_camera().to_matrix())
+    return cam_calib, T_bc
 
 
 def get_imu_data(imu, data):
@@ -203,19 +203,20 @@ def main():
     provider, deliver_option = load_and_config_data_provider(args.aea)
 
     # load closed-loop trajectory
-    ref_C_iv_all, ref_r_vi_i_all, v0, omega_0, t0, N = load_closed_loop_trajectory(args.aea, 1000)
+    ref_C_ib_all, ref_r_bi_i_all, v0, omega_0, t0, N = load_closed_loop_trajectory(args.aea, 2000)
 
     # # read points and observation from mps
     # points = load_points_filtered_by_confidence(args.aea)
 
     # get imu extrinsic calibration
-    # imu, T_bv = load_imu(provider, "imu-left")
-    imu, T_bv = load_imu(provider, "imu-right")
-    r_sv_v = T_bv[0: 3, 3]
+    # imu, T_bs = load_imu(provider, "imu-left")
+    imu, T_bs = load_imu(provider, "imu-right")
+    r_sb_b = T_bs[0: 3, 3]
+    T_bv = T_bs # single IMU vehicle frame is at IMU sensor frame
     T_vb = np.linalg.inv(T_bv)
 
     # compute initial velocity (inertial frame)
-    v0_v_i = ref_C_iv_all[:, :, 0] @ (v0 + np.cross(omega_0, r_sv_v))
+    v0_v_i = ref_C_ib_all[:, :, 0] @ (v0 + np.cross(omega_0, r_sb_b))
 
     # get camera extrinsic calibration
     cam_calib_l, T_bc_l = load_camera(provider, "camera-slam-left")
@@ -232,9 +233,9 @@ def main():
     K = np.array([[fx, 0.0, cx], [0.0, fx, cy], [0.0, 0.0, 1.0]])
 
     # TODO::single IMU for now; update implementation for VIMU
-    T_ib_0 = rotation_and_translation_to_pose(ref_C_iv_all[:, :, 0], ref_r_vi_i_all[0, :])
+    T_ib_0 = rotation_and_translation_to_pose(ref_C_ib_all[:, :, 0], ref_r_bi_i_all[0, :])
     T_iv_0 = T_ib_0 @ T_bv
-    estimator = VIMU_estimator(T_iv_0, v0_v_i)
+    estimator = VIMU_estimator(T_iv_0, v0_v_i, pre_proc="None")
     # estimator.add_IMU("imu-left", IMU_sensor_prop(np.eye(4), n_omega_l * np.ones(3), n_accel_l * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
     estimator.add_IMU("imu-right", IMU_sensor_prop(np.eye(4), n_omega_r * np.ones(3), n_accel_r * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
     estimator.add_camera("camera-slam-left",  camera_sensor_prop(T_cv_l, K, 0.1, 0.1))
@@ -244,15 +245,13 @@ def main():
     # run algorithm #
     #################
 
-    est_C_iv_all = np.zeros_like(ref_C_iv_all)
-    est_r_vi_i_all = np.zeros_like(ref_r_vi_i_all)
-    C_is_est, r_si_i_est = estimator.get_state_estimate()
-    T_is_est = rotation_and_translation_to_pose(C_is_est, r_si_i_est)
-    T_iv_est = T_is_est @ T_vb
-    est_C_iv_all[:, :, 0] = T_iv_est[0: 3, 0: 3]
-    est_r_vi_i_all[0, :] = T_iv_est[0: 3, 3]
-    # est_C_iv_all[:, :, 0] = np.copy(ref_C_iv_all[:, :, 0])
-    # est_r_vi_i_all[0, :] = ref_r_vi_i_all[0, :]
+    est_C_ib_all   = np.zeros_like(ref_C_ib_all)
+    est_r_bi_i_all = np.zeros_like(ref_r_bi_i_all)
+    est_C_iv, est_r_vi_i = estimator.get_state_estimate()
+    est_T_iv = rotation_and_translation_to_pose(est_C_iv, est_r_vi_i)
+    est_C_ib_all[:, :, 0] = est_T_iv[0: 3, 0: 3]
+    est_r_bi_i_all[0, :]  = est_T_iv[0: 3, 3]
+    est_T_ib = est_T_iv @ T_vb
 
     # Async iterator to deliver sensor data for all streams in device time order
     for data in provider.deliver_queued_sensor_data(deliver_option):
@@ -275,37 +274,29 @@ def main():
             estimator.handle_IMU_measurement(label, time, omega, accel)
 
         elif label == "camera-slam-left" or label == "camera-slam-right":
-            C_ib = ref_C_iv_all[:, :, k]
-            r_vi_i = ref_r_vi_i_all[k, :]
-            T_ib = rotation_and_translation_to_pose(C_ib, r_vi_i)
+            C_ib = ref_C_ib_all[:, :, k]
+            r_bi_i = ref_r_bi_i_all[k, :]
+            T_ib = rotation_and_translation_to_pose(C_ib, r_bi_i)
             T_cv = estimator.camera[label].T_cv
             T_ci = T_cv @ T_vb @ np.linalg.inv(T_ib)
             # print(T_ci)
 
             # pt_3d, kp_2d = gen_cam_data(camera, T_ci, points)
             pt_3d, kp_2d = sim_cam_data(camera, T_ci, 400)
-            if pt_3d is None:
-                print("[WARN]: no visible landmark detected")
-                continue
-            # else:
-                # print(f"[INFO]: detected {pt_3d.shape[0]} landmarks")
-
             estimator.handle_camera_measurement(label, pt_3d, kp_2d)
-            done = True
-
         else:
             continue
             print("[FAIL]: unexpected sensor data received.")
 
-        C_is, r_si_i = estimator.get_state_estimate()
-        T_is = rotation_and_translation_to_pose(C_is, r_si_i)
-        T_iv_est = T_is @ T_vb
-        est_C_iv_all[:, :, k] = np.copy(T_iv_est[0: 3, 0: 3])
-        r_vi_i_est = np.copy(T_iv_est[0: 3, 3])
-        est_r_vi_i_all[k, :] = r_vi_i_est
-        # print(f"[INFO]: t = {t_curr}, k = {k}, dt = {dt}; received data from {label}, r_vi_i = {r_vi_i_est}")
-        r_vi_i_err = r_vi_i_est - ref_r_vi_i_all[k, :]
-        if np.linalg.norm(r_vi_i_err) > 1:
+        C_iv, r_vi_i = estimator.get_state_estimate()
+        T_iv = rotation_and_translation_to_pose(C_iv, r_vi_i)
+        est_T_ib = T_iv @ T_vb
+        est_C_ib_all[:, :, k] = np.copy(est_T_ib[0: 3, 0: 3])
+        est_r_bi_i = np.copy(est_T_ib[0: 3, 3])
+        est_r_bi_i_all[k, :] = est_r_bi_i
+        # print(f"[INFO]: t = {t_curr}, k = {k}, dt = {dt}; received data from {label}, r_vi_i = {est_r_vi_i}")
+        err_r_bi_i = est_r_bi_i - ref_r_bi_i_all[k, :]
+        if np.linalg.norm(err_r_bi_i) > 1:
             print(f"[WARN]: trajectory diverged from ground truth at k = {k}")
             break
 
@@ -317,10 +308,10 @@ def main():
     ################
 
     for i in range(k - 1):
-        if np.linalg.norm(est_r_vi_i_all[i, :]) == 0.0:
-            est_r_vi_i_all[i, :] = 0.5 * (est_r_vi_i_all[i - 1, :] + est_r_vi_i_all[i + 1, :])
+        if np.linalg.norm(est_r_bi_i_all[i, :]) == 0.0:
+            est_r_bi_i_all[i, :] = 0.5 * (est_r_bi_i_all[i - 1, :] + est_r_bi_i_all[i + 1, :])
 
-    plot_trajectory(ref_r_vi_i_all[0: k - 1, :], est_r_vi_i_all[0: k - 1, :])
+    plot_trajectory(ref_r_bi_i_all[0: k - 1, :], est_r_bi_i_all[0: k - 1, :])
     print("[INFO]: Done")
 
 
