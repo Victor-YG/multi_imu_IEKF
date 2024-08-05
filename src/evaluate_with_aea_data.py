@@ -15,6 +15,7 @@ from projectaria_tools.core.sensor_data import TimeDomain, TimeQueryOptions
 from projectaria_tools.core.stream_id import RecordableTypeId, StreamId
 from projectaria_tools.core.sophus import SO3, SE3, interpolate, iterativeMean
 
+from core.metrics import *
 from core.VIMU_estimator import *
 
 sample_folder = "../../datasets/aria/loc1_script1_seq1_rec1"
@@ -251,6 +252,9 @@ def main():
     est_T_iv = rotation_and_translation_to_pose(est_C_iv, est_r_vi_i)
     est_C_ib_all[:, :, 0] = est_T_iv[0: 3, 0: 3]
     est_r_bi_i_all[0, :]  = est_T_iv[0: 3, 3]
+    pose_err = np.zeros(6)
+    pose_err_all = np.zeros([N, 6])
+    covariance_all = np.zeros([9, 9, N])
     est_T_ib = est_T_iv @ T_vb
 
     # Async iterator to deliver sensor data for all streams in device time order
@@ -289,14 +293,21 @@ def main():
             print("[FAIL]: unexpected sensor data received.")
 
         C_iv, r_vi_i = estimator.get_state_estimate()
+        covariance_all[:, :, k] = estimator.get_state_covariance()[0: 9, 0: 9]
         T_iv = rotation_and_translation_to_pose(C_iv, r_vi_i)
         est_T_ib = T_iv @ T_vb
-        est_C_ib_all[:, :, k] = np.copy(est_T_ib[0: 3, 0: 3])
-        est_r_bi_i = np.copy(est_T_ib[0: 3, 3])
-        est_r_bi_i_all[k, :] = est_r_bi_i
+        est_C_ib = est_T_ib[0: 3, 0: 3]
+        est_r_bi_i = est_T_ib[0: 3, 3]
+        est_C_ib_all[:, :, k] = np.copy(est_C_ib)
+        est_r_bi_i_all[k, :] = np.copy(est_r_bi_i)
+        C_err = np.linalg.inv(est_C_ib) @ ref_C_ib_all[:, :, k]
+        pose_err[0: 3] = Rotation.from_matrix(C_err).as_rotvec()
+        pose_err[3: 6] = est_r_bi_i - ref_r_bi_i_all[k, :]
+        pose_err_all[k, :] = np.copy(pose_err)
+
         # print(f"[INFO]: t = {t_curr}, k = {k}, dt = {dt}; received data from {label}, r_vi_i = {est_r_vi_i}")
-        err_r_bi_i = est_r_bi_i - ref_r_bi_i_all[k, :]
-        if np.linalg.norm(err_r_bi_i) > 1:
+
+        if np.linalg.norm(pose_err[3: 6]) > 1:
             print(f"[WARN]: trajectory diverged from ground truth at k = {k}")
             break
 
@@ -310,8 +321,20 @@ def main():
     for i in range(k - 1):
         if np.linalg.norm(est_r_bi_i_all[i, :]) == 0.0:
             est_r_bi_i_all[i, :] = 0.5 * (est_r_bi_i_all[i - 1, :] + est_r_bi_i_all[i + 1, :])
+            pose_err_all[i, :] = 0.5 * (pose_err_all[i - 1, :] + pose_err_all[i + 1, :])
+
+    mae, mse, rmse = compute_metrics(pose_err_all[0: k - 1, :])
+    np.set_printoptions(precision=8)
+    print(f"[INFO]:  mae = { mae}")
+    print(f"[INFO]: rmse = {rmse}")
+    print(f"[INFO]:  mse = { mse}")
 
     plot_trajectory(ref_r_bi_i_all[0: k - 1, :], est_r_bi_i_all[0: k - 1, :])
+
+    # plot state error
+    plot_state_error_and_uncertainty(pose_err_all[0: k - 1, 0: 3], covariance_all[0: 3, 0: 3, 0: k - 1], titles=["e_roll", "e_pitch", "e_yaw"])
+    plot_state_error_and_uncertainty(pose_err_all[0: k - 1, 3: 6], covariance_all[6: 9, 6: 9, 0: k - 1], titles=["e_pos_x", "e_pos_y", "e_pos_z"])
+
     print("[INFO]: Done")
 
 
