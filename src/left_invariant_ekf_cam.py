@@ -139,7 +139,7 @@ def compute_measurement_model_jocobian(T, fx, fy, cx, cy, x, y, z, u, v):
     y_op[1] = fy *  p_c[1] / p_c[2] + cy # v
     e_y = y_c - y_op
 
-    Z_jk = get_circle_dot_for_SE2_3(p_c)
+    Z_jk = -get_circle_dot_for_SE2_3(p_c)
 
     S_jk = np.zeros([2, 3])
     S_jk[0, 0] =  fx /  p_c[2]
@@ -150,7 +150,7 @@ def compute_measurement_model_jocobian(T, fx, fy, cx, cy, x, y, z, u, v):
 
     D_T = np.zeros([3, 4])
     D_T[0: 3, 0: 3] = np.eye(3)
-    G = -S_jk @ D_T @ Z_jk
+    G = S_jk @ D_T @ Z_jk
 
     return e_y, G
 

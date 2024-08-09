@@ -113,7 +113,7 @@ class VIMU_estimator(inertial_navigation_system):
         y_op[1] = fy * p_c[1] / p_c[2] + cy # v
         e_y = y_c - y_op
 
-        Z_jk = get_circle_dot_for_SE2_3(p_v)
+        Z_jk = -get_circle_dot_for_SE2_3(p_v)
         Z_jk = T_cv @ Z_jk
 
         S_jk = np.zeros([2, 3])
@@ -125,7 +125,7 @@ class VIMU_estimator(inertial_navigation_system):
 
         D_T = np.zeros([3, 4])
         D_T[0: 3, 0: 3] = np.eye(3)
-        G = -S_jk @ D_T @ Z_jk
+        G = S_jk @ D_T @ Z_jk
 
         return e_y, G
 
