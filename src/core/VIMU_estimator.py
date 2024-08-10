@@ -140,6 +140,9 @@ class VIMU_estimator(inertial_navigation_system):
             - R: noise covariance matrix
         '''
 
+        if id not in self.imu:
+            return
+
         dt = time - self.time
         self.time = time
 
@@ -233,6 +236,55 @@ class VIMU_estimator(inertial_navigation_system):
         R_cam[1, 1] = self.camera[id].var_n_v
         R_cam_all = [R_cam] * M
         R = scipy.linalg.block_diag(*R_cam_all)
+
+        # compute Kalman gain
+        S_k = G_k @ self.covariance @ G_k_T + R
+        K_k = self.covariance @ G_k_T @ np.linalg.inv(S_k)
+
+        # update covariance
+        self.covariance = (np.eye(15) - K_k @ G_k) @ self.covariance
+
+        # update state
+        dX = K_k @ z_k
+        self.vel    += self.C_iv @ dX[3: 6]
+        self.r_vi_i += self.C_iv @ dX[6: 9]
+        dC = Rotation.from_rotvec(dX[0: 3]).as_matrix()
+        self.C_iv = self.C_iv @ dC
+
+        # update bias
+        self.b_omega += dX[ 9: 12]
+        self.b_accel += dX[12: 15]
+
+        return self.C_iv, self.vel, self.r_vi_i, self.covariance
+
+
+    def handle_point_measurement(self, pt_i, pt_v, R=None):
+        '''
+        update state and covariance with direct point measurement (p_c = C @ p_i + r)
+            - pt_i: point in inertial frame
+            - kp_v: point in vehicle frame
+            - R: noise covariance matrix
+        '''
+
+        # get transformations
+        T_iv = rotation_and_translation_to_pose(self.C_iv, self.r_vi_i)
+        T_vi = np.linalg.inv(T_iv)
+
+        # construct measurement Jacobian
+        M = pt_i.shape[0]
+        z_k = np.zeros(3 * M)
+        G_k = np.zeros([3 * M, 15])
+
+        for m in range(M):
+            p_v = T_vi @ pt_i[m, :]
+            z_km = pt_v[m, :] - p_v
+            z_k[m * 3 : (m + 1) * 3] = z_km[0: 3]
+            G_km = -get_circle_dot_for_SE2_3(p_v)
+            G_k[m * 3 : (m + 1) * 3, 0: 9] = G_km[0: 3, :]
+            G_k_T = np.transpose(G_k)
+
+        # construct noise covariance
+        R  = np.eye(3 * M) * 1e-6
 
         # compute Kalman gain
         S_k = G_k @ self.covariance @ G_k_T + R

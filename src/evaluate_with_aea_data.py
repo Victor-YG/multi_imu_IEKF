@@ -18,7 +18,7 @@ from projectaria_tools.core.sophus import SO3, SE3, interpolate, iterativeMean
 from core.metrics import *
 from core.VIMU_estimator import *
 
-sample_folder = "../../datasets/aria/loc1_script1_seq1_rec1"
+sample_folder = "/media/victor/T7/datasets/aria/loc1_script1_seq1_rec1"
 
 n_omega_l = 8.73e-5 # (rad/s) / sqrt(Hz)
 n_accel_l = 8.83e-4 # (m/s^2) / sqrt(Hz)
@@ -185,9 +185,26 @@ def sim_cam_data(camera, T_ci, M=10):
     return np.stack(pt_3d, axis=0), np.stack(kp_2d, axis=0)
 
 
+def sim_point_data(T_iv, M=10):
+    pt_i = []
+    pt_v = []
+
+    for m in range(M):
+        p_v = np.ones(4)
+        p_v[0] = (np.random.rand() - 0.5) * 10.0
+        p_v[1] = (np.random.rand() - 0.5) * 10.0
+        p_v[2] = (np.random.rand() - 0.5) * 10.0
+        p_i = T_iv @ p_v
+        pt_v.append(p_v)
+        pt_i.append(p_i)
+
+    return np.stack(pt_i, axis=0), np.stack(pt_v, axis=0)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--aea",  help="Path to Aria Everyday Activities data folder", default=sample_folder, required=False)
+    parser.add_argument("--algo", help="Algorithm for state estimation (SIMU, VIMU)", default="SIMU", required=False)
     # parser.add_argument("--out",  help="Output folder to dump evaluation result", default=None, required=True)
     args = parser.parse_args()
 
@@ -200,30 +217,18 @@ def main():
     # load data #
     #############
 
-    args.aea = sample_folder
     provider, deliver_option = load_and_config_data_provider(args.aea)
 
     # load closed-loop trajectory
     ref_C_ib_all, ref_r_bi_i_all, v0, omega_0, t0, N = load_closed_loop_trajectory(args.aea, 2000)
+    T_ib_0 = rotation_and_translation_to_pose(ref_C_ib_all[:, :, 0], ref_r_bi_i_all[0, :])
 
     # # read points and observation from mps
     # points = load_points_filtered_by_confidence(args.aea)
 
-    # get imu extrinsic calibration
-    # imu, T_bs = load_imu(provider, "imu-left")
-    imu, T_bs = load_imu(provider, "imu-right")
-    r_sb_b = T_bs[0: 3, 3]
-    T_bv = T_bs # single IMU vehicle frame is at IMU sensor frame
-    T_vb = np.linalg.inv(T_bv)
-
-    # compute initial velocity (inertial frame)
-    v0_v_i = ref_C_ib_all[:, :, 0] @ (v0 + np.cross(omega_0, r_sb_b))
-
     # get camera extrinsic calibration
     cam_calib_l, T_bc_l = load_camera(provider, "camera-slam-left")
     cam_calib_r, T_bc_r = load_camera(provider, "camera-slam-right")
-    T_cv_l = np.linalg.inv(T_bc_l) @ T_bv
-    T_cv_r = np.linalg.inv(T_bc_r) @ T_bv
 
     # setup camera simulator and get intrinsics
     fx = 150
@@ -234,11 +239,29 @@ def main():
     K = np.array([[fx, 0.0, cx], [0.0, fx, cy], [0.0, 0.0, 1.0]])
 
     # TODO::single IMU for now; update implementation for VIMU
-    T_ib_0 = rotation_and_translation_to_pose(ref_C_ib_all[:, :, 0], ref_r_bi_i_all[0, :])
-    T_iv_0 = T_ib_0 @ T_bv
-    estimator = VIMU_estimator(T_iv_0, v0_v_i, pre_proc="None")
-    # estimator.add_IMU("imu-left", IMU_sensor_prop(np.eye(4), n_omega_l * np.ones(3), n_accel_l * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
-    estimator.add_IMU("imu-right", IMU_sensor_prop(np.eye(4), n_omega_r * np.ones(3), n_accel_r * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
+    if args.algo == "SIMU":
+        # get imu extrinsic calibration
+        imu, T_bs = load_imu(provider, "imu-left")
+        # imu, T_bs = load_imu(provider, "imu-right")
+
+        # single IMU vehicle frame is at IMU sensor frame
+        T_bv = T_bs
+
+        # compute initial velocity (inertial frame)
+        r_vb_b = T_bv[0: 3, 3]
+        v0_v_i = ref_C_ib_all[:, :, 0] @ (v0 + np.cross(omega_0, r_vb_b))
+
+        T_vb = np.linalg.inv(T_bv)
+        T_cv_l = np.linalg.inv(T_bc_l) @ T_bv
+        T_cv_r = np.linalg.inv(T_bc_r) @ T_bv
+        T_iv_0 = T_ib_0 @ T_bv
+
+        estimator = VIMU_estimator(T_iv_0, v0_v_i, pre_proc="None")
+        estimator.add_IMU("imu-left", IMU_sensor_prop(np.eye(4), n_omega_l * np.ones(3), n_accel_l * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
+        # estimator.add_IMU("imu-right", IMU_sensor_prop(np.eye(4), n_omega_r * np.ones(3), n_accel_r * np.ones(3), 0.1 * np.ones(3), 0.1 * np.ones(3)))
+    elif args.algo == "VIMU":
+        pass
+
     estimator.add_camera("camera-slam-left",  camera_sensor_prop(T_cv_l, K, 0.1, 0.1))
     estimator.add_camera("camera-slam-right", camera_sensor_prop(T_cv_r, K, 0.1, 0.1))
 
@@ -270,10 +293,8 @@ def main():
         sid = data.stream_id()
         label = provider.get_label_from_stream_id(sid)
 
-        # if label == "imu-left":
-        if label == "imu-right":
+        if label == "imu-left" or label == "imu-right":
             time = (t_curr - t0) / 1e9 # ns to sec
-
             omega, accel = get_imu_data(imu, data)
             estimator.handle_IMU_measurement(label, time, omega, accel)
 
@@ -281,20 +302,24 @@ def main():
             C_ib = ref_C_ib_all[:, :, k]
             r_bi_i = ref_r_bi_i_all[k, :]
             T_ib = rotation_and_translation_to_pose(C_ib, r_bi_i)
-            T_cv = estimator.camera[label].T_cv
-            T_ci = T_cv @ T_vb @ np.linalg.inv(T_ib)
-            # print(T_ci)
 
-            # pt_3d, kp_2d = gen_cam_data(camera, T_ci, points)
-            pt_3d, kp_2d = sim_cam_data(camera, T_ci, 400)
-            estimator.handle_camera_measurement(label, pt_3d, kp_2d)
+            # T_cv = estimator.camera[label].T_cv
+            # T_ci = T_cv @ T_vb @ np.linalg.inv(T_ib)
+            # # print(T_ci)
+            # # pt_3d, kp_2d = gen_cam_data(camera, T_ci, points)
+            # pt_3d, kp_2d = sim_cam_data(camera, T_ci, 400)
+            # estimator.handle_camera_measurement(label, pt_3d, kp_2d)
+
+            T_iv = T_ib @ T_bv
+            pt_i, pt_v = sim_point_data(T_iv, 10)
+            estimator.handle_point_measurement(pt_i, pt_v)
         else:
             continue
             print("[FAIL]: unexpected sensor data received.")
 
         C_iv, r_vi_i = estimator.get_state_estimate()
-        covariance_all[:, :, k] = estimator.get_state_covariance()[0: 9, 0: 9]
         T_iv = rotation_and_translation_to_pose(C_iv, r_vi_i)
+        covariance_all[:, :, k] = estimator.get_state_covariance()[0: 9, 0: 9]
         est_T_ib = T_iv @ T_vb
         est_C_ib = est_T_ib[0: 3, 0: 3]
         est_r_bi_i = est_T_ib[0: 3, 3]
@@ -311,8 +336,8 @@ def main():
             print(f"[WARN]: trajectory diverged from ground truth at k = {k}")
             break
 
-        if k > 3000:
-            break
+        # if k > 3000:
+        #     break
 
     ################
     # plot results #

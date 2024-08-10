@@ -114,10 +114,10 @@ def plot_state_error_and_uncertainty(e, P, titles):
     t = np.linspace(start=0, stop=K, num=K, dtype=int)
 
     for d in range(D):
-        axes[d].plot(t, e[:, d])
         axes[d].plot(t,  3 * stddev[:, d], color="orange", linewidth=1, linestyle='dashed')
         axes[d].plot(t, -3 * stddev[:, d], color="orange", linewidth=1, linestyle='dashed')
         axes[d].fill_between(t, 3 * stddev[:, d], -3 * stddev[:, d], color='green', alpha=0.1, label='Filled Area')
+        axes[d].plot(t, e[:, d])
         axes[d].set_title(titles[d])
 
     plt.show()
