@@ -166,7 +166,7 @@ For IMU not at vehicle frame, measurement are in each IMU's local frame and we a
 \begin{equation}
 \begin{split}
     \textbf{y}_{a,i}(t) &= \textbf{C}_i^{-1} \left[ \textbf{a}(t) + \bm{\omega}(t)^\wedge (\bm{\omega}(t)^\wedge \textbf{r}_i) + \bm{\alpha}(t)^\wedge \textbf{r}_i \right] \\
-    &+ \textbf{b}_{a,i}(t) + \textbf{n}_{a,i}(t) + \textbf{C}_i^{-1} \textbf{C}^{-1}(t) \textbf{g}
+    &+ \textbf{b}_{a,i}(t) + \textbf{n}_{a,i}(t)
 \end{split}
 \end{equation}
 
@@ -176,18 +176,12 @@ Here we have $\textbf{C}_i$ and $\textbf{r}_i$ short for $\textbf{C}_{vs}$ and $
 
 \subsection{Averaging Multiple Gyroscopes}
 
-First we align each IMU measurement with vehicle frame.
+First we align gyroscope measurement with vehicle frame.
 \begin{equation}
     \textbf{C}_{i} \textbf{y}_{\omega,i}(t) = \bm{\omega}(t) + \textbf{C}_{i} \textbf{b}_{\omega, i}(t) + \textbf{C}_{i} \textbf{n}_{\omega,i}(t)
 \end{equation}
-\begin{equation}\label{eqn_accel}
-\begin{split}
-    \textbf{C}_{i} \textbf{y}_{a,i}(t) &= \textbf{a}(t) + \bm{\omega}(t)^\wedge (\bm{\omega}(t)^\wedge \textbf{r}_i) + \bm{\alpha}(t)^\wedge \textbf{r}_i \\
-    &+ \textbf{C}_{i} \textbf{b}_{a,i}(t) + \textbf{C}_{i} \textbf{n}_{a,i}(t) + \textbf{C}^{-1}(t)\textbf{g}
-\end{split}
-\end{equation}
 
-For gyroscope measurement, the weighted average ($\sum_i{a_i} = 1$) of all IMU measurement is simply,
+The weighted average ($\sum_i{a_i} = 1$) of all gyroscope is simply,
 \begin{equation}
 \begin{split}
     \bar{\textbf{y}}_\omega(t) &= \sum_i{a_i \textbf{C}_{i} \textbf{y}_\omega(t)} \\
@@ -201,17 +195,22 @@ We see that the averaged measurement can be summarized as,
     \bar{\textbf{y}}_\omega(t) = \bm{\omega}(t) + \bar{\textbf{b}}_\omega(t) + \bar{\textbf{n}}_\omega(t)
 \end{equation}
 
-Since all biases are slow varying we can estimate the combined bias drift instead of the individual ones.
-
 \subsection{Averaging Multiple Accelerometers}
+
+Align the all accelerometer measurement to vehicle frame.
+\begin{equation}\label{eqn_accel}
+\begin{split}
+    \textbf{C}_{i} \textbf{y}_{a,i}(t) &= \textbf{a}(t) + \bm{\omega}(t)^\wedge (\bm{\omega}(t)^\wedge \textbf{r}_i) + \bm{\alpha}(t)^\wedge \textbf{r}_i \\
+    &+ \textbf{C}_{i} \textbf{b}_{a,i}(t) + \textbf{C}_{i} \textbf{n}_{a,i}(t)
+\end{split}
+\end{equation}
 
 Summing equation \ref{eqn_accel} of all accelerometers we have,
 \begin{equation}
 \begin{split}
     \bar{\textbf{y}}_a(t) &= \sum_i{a_i \textbf{C}_{i} \textbf{y}_a(t)} \\
-    &= \textbf{a}(t) + \textbf{C}^{-1}(t)\textbf{g} \\
+    &= \textbf{a}(t) + \sum_i{a_i \textbf{C}_{i} \textbf{b}_{a,i}(t)} + \sum_i{a_i \textbf{C}_{i} \textbf{n}_{a,i}(t)} \\
     &+ \sum_i{a_i \bm{\omega}(t)^\wedge (\bm{\omega}(t)^\wedge \textbf{r}_i)} + \sum_i{a_i \bm{\alpha}(t)^\wedge \textbf{r}_i} \\
-    &+ \sum_i{a_i \textbf{C}_{i} \textbf{b}_{a,i}(t)} + \sum_i{a_i \textbf{C}_{i} \textbf{n}_{a,i}(t)}
 \end{split}
 \end{equation}
 
@@ -219,26 +218,32 @@ Using the associate rule $\textbf{a}^\wedge \textbf{b} + \textbf{a}^\wedge \text
 \begin{equation}
 \begin{split}
     \bar{\textbf{y}}_a(t) &= \sum_i{a_i \textbf{C}_{i} \textbf{y}_a(t)} \\
-    &= \textbf{a}(t) + \textbf{C}^{-1}(t)\textbf{g} \\
+    &= \textbf{a}(t) + \sum_i{a_i \textbf{C}_{i} \textbf{b}_{a,i}(t)} + \sum_i{a_i \textbf{C}_{i} \textbf{n}_{a,i}(t)} \\
     &+ \bm{\omega}(t)^\wedge \left(\bm{\omega}(t)^\wedge \left( \sum_i{a_i \textbf{r}_i} \right) \right) + \bm{\alpha}(t)^\wedge \left( \sum_i{a_i\textbf{r}_i} \right)\\
-    &+ \sum_i{a_i \textbf{C}_{i} \textbf{b}_{a,i}(t)} + \sum_i{a_i \textbf{C}_{i} \textbf{n}_{a,i}(t)}
 \end{split}
 \end{equation}
 
-If $\sum_i{a_i \textbf{r}_i} = \textbf{0}$ then we eliminate the terms due to lever arm effect. This gives,
+If $\sum_i{a_i \textbf{r}_i} = \textbf{0}$ then we eliminate the last two terms from lever arm effect. This gives,
 \begin{equation}
-    \bar{\textbf{y}}_a(t) = \textbf{a}(t) + \textbf{C}(t)\textbf{g} + \bar{\textbf{b}}_a(t) + \bar{\textbf{n}}_a(t)
+    \bar{\textbf{y}}_a(t) = \textbf{a}(t) + \bar{\textbf{b}}_a(t) + \bar{\textbf{n}}_a(t)
 \end{equation}
-
-As we can see that, if we choose the vehicle frame and weights such that $\sum_i{a_i \textbf{r}_i} = \textbf{0}$, then we can ignore the separation of all IMUs and fused the accelerometer measurement through averaging.
 
 \subsection{VIMU from Weighted Average}\label{AA}
 
+As we can see that, if we choose the vehicle frame and weights such that $\sum_i{a_i \textbf{r}_i} = \textbf{0}$, then we can ignore the separation of all IMUs and fused the accelerometer measurement through averaging.
 
+Since all biases are slow varying, the combined biases are also slow varying. So instead of tracking individual biases, only the combined biases are needed. When receiving new set of IMU measurement, we estimate the angular velocity and linear acceleration with the update equations below.
+\begin{equation}
+\begin{split}
+    \hat{\bm{\omega}}(t) = \bar{\textbf{y}}_\omega(t) - \hat{\bar{\textbf{b}}}_\omega(t) \\
+    \hat{\textbf{a}}(t)  = \bar{\textbf{y}}_a(t) - \hat{\bar{\textbf{b}}}_a(t)
+\end{split}
+\end{equation}
 
-Summarize the simplified IMU model from averaging multiple IMUs with separation.
-
-\textcolor{red}{Talk about the combined bias drift rate and noise variance.}
+The combined measurement is expected to have slower drift and the estimate is expected to be less noisy as well \cite{patel2022_multi-imu}. If having $n$ identical IMUs and equal weight the standard deviation of the combined noise or drift rate is expected to be,
+\begin{equation}
+    \bar{\sigma} = \frac{\sigma}{\sqrt{n}}
+\end{equation}
 
 \subsection{Selecting Weight for Minimal Uncertainty}\label{solve_weight_by_noise}
 
@@ -285,8 +290,6 @@ When we have a reachable vehicle frame in mind, we need to solve for the weight.
 \end{equation}
 
 $\textbf{r}_i$ is the relative position of the IMUs to the selected vehicle frame. Here we used the objective to reduce noise as shown in section \ref{solve_weight_by_noise}.
-
-\textcolor{red}{need to include the noise term in the derivation for solution}
 
 Since it is a quadratic programming problem, it is possible to find a close-form solution. The Lagrangian of the problem is then $\mathcal{L} = \frac{1}{2}\textbf{w}^T \bm{\Sigma} \textbf{w} + \bm{\lambda}^T \textbf{R}\textbf{w} + \beta \left( 1 - \textbf{1}^T \textbf{w} \right)$ = 0 where $\bm{\Sigma} = \text{diag}(\sigma_1^2, ..., \sigma_n^2)$, $\textbf{R} = \left[\begin{matrix} \textbf{r}_0 & ... & \textbf{r}_n\end{matrix}\right]$ and $\textbf{1}^T = \left[\begin{matrix}1 & ... & 1\end{matrix}\right]$. This gives the following KKT conditions.
 \begin{equation}
@@ -341,7 +344,7 @@ Which dataset we used (hard to find dataset containing multiple IMUs). What VINS
 
 \section{Conclusion}
 
-What we did. What is the benefit. \cite{Farahan2022}.
+What we did. What is the benefit.
 
 \bibliographystyle{plain}
 \bibliography{References.bib}
