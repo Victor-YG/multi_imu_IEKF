@@ -150,6 +150,14 @@ Where $\textbf{b}_\omega$ is the bias of gyroscope measurement due to random wal
     \textbf{y}_a(t) = \textbf{a}(t) + \textbf{b}_a(t) + \textbf{n}_a(t)
 \end{equation}
 
+Due to the presence of biases, it is estimated as part of the state vector and subtracted from the raw measurement to get the unbiased measurement for propagation.
+\begin{equation}
+\begin{split}
+    \hat{\bm{\omega}}(t) = \textbf{y}_\omega(t) - \hat{\textbf{b}}_\omega(t) \\
+    \hat{\textbf{a}}(t)  = \textbf{y}_a(t) - \hat{\textbf{b}}_a(t)
+\end{split}
+\end{equation}
+
 For IMU not at vehicle frame, measurement are in each IMU's local frame and we also have additional terms in acceleration measurement due to lever arm effect.
 
 \begin{equation}
@@ -163,8 +171,6 @@ For IMU not at vehicle frame, measurement are in each IMU's local frame and we a
 \end{equation}
 
 Here we have $\textbf{C}_i$ and $\textbf{r}_i$ short for $\textbf{C}_{vs}$ and $\textbf{r}_v^{sv}$ defining the pose $\textbf{T}_{vs}$ of the $i$-th IMU in vehicle frame (or VIMU frame as oppose to body frame).
-
-\textcolor{red}{Talk about propagtion step}
 
 \section{Methodology}\label{methodology}
 
@@ -227,6 +233,8 @@ If $\sum_i{a_i \textbf{r}_i} = \textbf{0}$ then we eliminate the terms due to le
 As we can see that, if we choose the vehicle frame and weights such that $\sum_i{a_i \textbf{r}_i} = \textbf{0}$, then we can ignore the separation of all IMUs and fused the accelerometer measurement through averaging.
 
 \subsection{VIMU from Weighted Average}\label{AA}
+
+
 
 Summarize the simplified IMU model from averaging multiple IMUs with separation.
 
