@@ -85,19 +85,17 @@ Last common approach would be to have individual state estimator for each IMU sy
 
 \subsection{Summary}
 
-As presented, multiple approaches have being proposed. \ref{constraint} would be the most computationally expensive approach if number of IMU are large as it has many states all in one Kalman filter. The inversion step in update step would be the bottleneck. The averaging approach in \ref{VIMU} is the simplest to implement and doesn't significantly alter the existing single IMU framework. Although averaging between accelerometers that are physically separated is not proposed due to the lever arm effect, in \ref{methodology} we present that it is still possible to average the accelerometers despite the separation.
+As presented, multiple approaches have being proposed. \ref{constraint} would be computationally expensive if number of IMU are large as it has many states all in one Kalman filter. The averaging approach in \ref{VIMU} is the simplest to implement and doesn't significantly alter the existing single IMU framework. Although averaging between accelerometers that are physically separated is not proposed due to the lever arm effect, in \ref{methodology} we present that it is still possible to average the accelerometers despite the separation.
 
 \section{Preliminaries}
 
 \subsection{Definitions}
 
-\textcolor{red}{bold all omega and alpha etc.}
-
 For any quantity $x$ We define $\bar{x} = x + b_x$ as the biased value and $\Tilde{x} = x + n_x$ as the noisy value. If it is both biased and noisy measurement, it is denoted as $y_x$. If a quantity is in the form like $x(t)$ then it is a time-varying quantity, otherwise it is time-invariant.
 
 For any point $\textbf{p}$ or vector we define as $\textbf{r}_i^{pi}$ in inertia frame $\mathcal{F}_i$. For example, the vehicle position in inertial frame thus become $\textbf{r}_i^{vi}$.
 
-For rotation matrix or transformation matrix, we have $\textbf{C}_{vi}$ or $\textbf{T}_{vi}$ for transforming point expressed in inertial frame $\textbf{r}_i^{pi}$ into vehicle frame $\mathcal{F}_v$ as $\textbf{r}_v^{pi}$.
+For rotation matrix or transformation matrix, we have $\textbf{C}_{vi}$ or $\textbf{T}_{vi}$ for transforming point $\textbf{r}_i^{pi}$ expressed in inertial frame $\bm{\mathcal{F}}_i$ into vehicle frame $\bm{\mathcal{F}}_v$ as $\textbf{r}_v^{pi}$.
 $$
 \textbf{r}_v^{pi} = \textbf{T}_{vi} \textbf{r}_i^{pi}
 $$
@@ -110,16 +108,16 @@ $$
 \end{matrix}\right]
 $$
 
-In this document $*^\wedge$ is specifically used for taking a $R^3$ into skew symmetric matrix. While $*^\wedge$ is used for transforming an element of Lie algebra to corresponding element in Lie group and $*^\vee$ is used for the reverse operation.
+In this document $*^\wedge$ is specifically used for taking a $\mathbb{R}^3$ into skew symmetric matrix. While $*^\wedge$ is used for transforming an element of Lie algebra to corresponding element in Lie group and $*^\vee$ is used for the reverse operation.
 $$
-\omega^\wedge = \left[\begin{matrix}
+\bm{\omega}^\wedge = \left[\begin{matrix}
     0 & -\omega_2 & \omega_1 \\
     \omega_2 & 0 & -\omega_3 \\
     -\omega_1 & \omega_3 & 0
 \end{matrix}\right]
 $$
 
-\textcolor{red}{Maybe define the various reference frame; inertial, body frame, vehicle frame, sensor frame, etc.}
+In the rest of the paper, we need to distinguish between body frame and vehicle frame. Body frame $\bm{\mathcal{F}}_b$ is for expressing sensor location relative to some mechanical datum and vehicle frame $\bm{\mathcal{F}}_v$ is for tracking vehicle pose in state estimation pipeline.
 
 \subsection{Rigid-Body Kinematics}
 
@@ -127,7 +125,7 @@ The state propagation using IMU measurement follows the rigid-body kinematics in
 $$
 \begin{equation}
 \begin{align}
-    \dot{\textbf{C}}(t) &= \textbf{C}(t) \omega(t)^\wedge \\
+    \dot{\textbf{C}}(t) &= \textbf{C}(t) \bm{\omega}(t)^\wedge \\
     \dot{\textbf{v}}(t) &= \textbf{C}(t) \textbf{a}(t) - \textbf{g} \\
     \dot{\textbf{p}}(t) &= \textbf{v}(t)
 \end{align}
@@ -136,14 +134,14 @@ $$
 
 Here $\textbf{C}$ is short for $\textbf{C}_{iv}$, $\textbf{v}$ is short for $\textbf{v}_i^{vi}$, and $\textbf{p}$ is for the position of the vehicle $\textbf{r}_i^{vi}$. These three formed the 9-dof state variables.
 
-In addition, $\textbf{g}$ is the acceleration from gravity and $\omega$ and $\textbf{a}$ are the true angular velocity and true linear acceleration in vehicle frame. Thus the goal is to estimate $\omega$ and $\textbf{a}$ from measurements of IMUs.
+In addition, $\textbf{g}$ is the acceleration from gravity and $\bm{\omega}$ and $\textbf{a}$ are the true angular velocity and true linear acceleration in vehicle frame. Thus the goal is to estimate $\bm{\omega}$ and $\textbf{a}$ from measurements of IMUs.
 
 \subsection{IMU Measurement Model}
 
 For the angular velocity measurement from gyroscope we have the following measurement model.
 
 \begin{equation}
-    \textbf{y}_\omega(t) = \omega(t) + \textbf{b}_\omega(t) + \textbf{n}_\omega(t)
+    \textbf{y}_\omega(t) = \bm{\omega}(t) + \textbf{b}_\omega(t) + \textbf{n}_\omega(t)
 \end{equation}
 
 Where $\textbf{b}_\omega$ is the bias of gyroscope measurement due to random walk and $\textbf{n}_\omega$ is the additive white noise on the measurement. Similarly we have the following measurement model for IMU at vehicle frame. Here $\textbf{b}_a$ is the bias of accelerometer and $\textbf{n}_a$ is the noise on the acceleration measurement.
@@ -155,11 +153,11 @@ Where $\textbf{b}_\omega$ is the bias of gyroscope measurement due to random wal
 For IMU not at vehicle frame, measurement are in each IMU's local frame and we also have additional terms in acceleration measurement due to lever arm effect.
 
 \begin{equation}
-    \textbf{y}_{\omega, i}(t) = \textbf{C}_{i}^{-1} \omega(t) + \textbf{b}_{\omega, i}(t) + \textbf{n}_{\omega,i}(t)
+    \textbf{y}_{\omega,i}(t) = \textbf{C}_{i}^{-1} \bm{\omega}(t) + \textbf{b}_{\omega, i}(t) + \textbf{n}_{\omega,i}(t)
 \end{equation}
 \begin{equation}
 \begin{split}
-    \textbf{y}_{a,i}(t) &= \textbf{C}_i^{-1} \left[ \textbf{a}(t) + \omega(t)^\wedge (\omega(t)^\wedge \textbf{r}_i) + \alpha(t)^\wedge \textbf{r}_i \right] \\
+    \textbf{y}_{a,i}(t) &= \textbf{C}_i^{-1} \left[ \textbf{a}(t) + \bm{\omega}(t)^\wedge (\bm{\omega}(t)^\wedge \textbf{r}_i) + \bm{\alpha}(t)^\wedge \textbf{r}_i \right] \\
     &+ \textbf{b}_{a,i}(t) + \textbf{n}_{a,i}(t) + \textbf{C}_i^{-1} \textbf{C}^{-1}(t) \textbf{g}
 \end{split}
 \end{equation}
@@ -174,11 +172,11 @@ Here we have $\textbf{C}_i$ and $\textbf{r}_i$ short for $\textbf{C}_{vs}$ and $
 
 First we align each IMU measurement with vehicle frame.
 \begin{equation}
-    \textbf{C}_{i} \textbf{y}_{\omega, i}(t) = \omega(t) + \textbf{C}_{i} \textbf{b}_{\omega, i}(t) + \textbf{C}_{i} \textbf{n}_{\omega,i}(t)
+    \textbf{C}_{i} \textbf{y}_{\omega,i}(t) = \bm{\omega}(t) + \textbf{C}_{i} \textbf{b}_{\omega, i}(t) + \textbf{C}_{i} \textbf{n}_{\omega,i}(t)
 \end{equation}
 \begin{equation}\label{eqn_accel}
 \begin{split}
-    \textbf{C}_{i} \textbf{y}_{a,i}(t) &= \textbf{a}(t) + \omega(t)^\wedge (\omega(t)^\wedge \textbf{r}_i) + \alpha(t)^\wedge \textbf{r}_i \\
+    \textbf{C}_{i} \textbf{y}_{a,i}(t) &= \textbf{a}(t) + \bm{\omega}(t)^\wedge (\bm{\omega}(t)^\wedge \textbf{r}_i) + \bm{\alpha}(t)^\wedge \textbf{r}_i \\
     &+ \textbf{C}_{i} \textbf{b}_{a,i}(t) + \textbf{C}_{i} \textbf{n}_{a,i}(t) + \textbf{C}^{-1}(t)\textbf{g}
 \end{split}
 \end{equation}
@@ -187,14 +185,14 @@ For gyroscope measurement, the weighted average ($\sum_i{a_i} = 1$) of all IMU m
 \begin{equation}
 \begin{split}
     \bar{\textbf{y}}_\omega(t) &= \sum_i{a_i \textbf{C}_{i} \textbf{y}_\omega(t)} \\
-    &= \sum_i{a_i \left[ \omega(t) + \textbf{C}_{i} \textbf{b}_{\omega, i}(t) + \textbf{C}_{i} \textbf{n}_{\omega,i}(t) \right]} \\
-    &= \omega(t) + \sum_i{a_i \textbf{C}_{i} \textbf{b}_{\omega, i}(t)} + \sum_i{a_i \textbf{C}_{i} \textbf{n}_{\omega,i}(t)}
+    &= \sum_i{a_i \left( \bm{\omega}(t) + \textbf{C}_{i} \textbf{b}_{\omega,i}(t) + \textbf{C}_{i} \textbf{n}_{\omega,i}(t) \right)} \\
+    &= \bm{\omega}(t) + \sum_i{a_i \textbf{C}_{i} \textbf{b}_{\omega,i}(t)} + \sum_i{a_i \textbf{C}_{i} \textbf{n}_{\omega,i}(t)}
 \end{split}
 \end{equation}
 
 We see that the averaged measurement can be summarized as,
 \begin{equation}
-    \bar{\textbf{y}}_\omega(t) = \omega(t) + \bar{\textbf{b}}_\omega(t) + \bar{\textbf{n}}_\omega(t)
+    \bar{\textbf{y}}_\omega(t) = \bm{\omega}(t) + \bar{\textbf{b}}_\omega(t) + \bar{\textbf{n}}_\omega(t)
 \end{equation}
 
 Since all biases are slow varying we can estimate the combined bias drift instead of the individual ones.
@@ -206,7 +204,7 @@ Summing equation \ref{eqn_accel} of all accelerometers we have,
 \begin{split}
     \bar{\textbf{y}}_a(t) &= \sum_i{a_i \textbf{C}_{i} \textbf{y}_a(t)} \\
     &= \textbf{a}(t) + \textbf{C}^{-1}(t)\textbf{g} \\
-    &+ \sum_i{a_i \omega(t)^\wedge (\omega(t)^\wedge \textbf{r}_i)} + \sum_i{a_i \alpha(t)^\wedge \textbf{r}_i} \\
+    &+ \sum_i{a_i \bm{\omega}(t)^\wedge (\bm{\omega}(t)^\wedge \textbf{r}_i)} + \sum_i{a_i \bm{\alpha}(t)^\wedge \textbf{r}_i} \\
     &+ \sum_i{a_i \textbf{C}_{i} \textbf{b}_{a,i}(t)} + \sum_i{a_i \textbf{C}_{i} \textbf{n}_{a,i}(t)}
 \end{split}
 \end{equation}
@@ -216,7 +214,7 @@ Using the associate rule $\textbf{a}^\wedge \textbf{b} + \textbf{a}^\wedge \text
 \begin{split}
     \bar{\textbf{y}}_a(t) &= \sum_i{a_i \textbf{C}_{i} \textbf{y}_a(t)} \\
     &= \textbf{a}(t) + \textbf{C}^{-1}(t)\textbf{g} \\
-    &+ \omega(t)^\wedge \left(\omega(t)^\wedge \left( \sum_i{a_i \textbf{r}_i} \right) \right) + \alpha(t)^\wedge \left( \sum_i{a_i\textbf{r}_i} \right)\\
+    &+ \bm{\omega}(t)^\wedge \left(\bm{\omega}(t)^\wedge \left( \sum_i{a_i \textbf{r}_i} \right) \right) + \bm{\alpha}(t)^\wedge \left( \sum_i{a_i\textbf{r}_i} \right)\\
     &+ \sum_i{a_i \textbf{C}_{i} \textbf{b}_{a,i}(t)} + \sum_i{a_i \textbf{C}_{i} \textbf{n}_{a,i}(t)}
 \end{split}
 \end{equation}
@@ -253,7 +251,7 @@ The combined drift rate is as follow. Here we drop the subscript as it is the sa
 
 The covariance of the combined drift rate would be the weighted sum of the noise covariance of each IMU.
 \begin{equation}
-    \bar{\Sigma} = \sum_i{a_i^2 \Sigma_i}
+    \bar{\bm{\Sigma}} = \sum_i{a_i^2 \bm{\Sigma}_i}
 \end{equation}
 
 One can then solve for the weights that minimize the trace or the sum of the singular value of the covariance.
