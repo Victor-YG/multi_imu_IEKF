@@ -499,7 +499,14 @@ To demonstrate the the weighting works as expected, we designed four configurati
 
 \subsection{Results}
 
-The results are summarized in Table \ref{tab:vio_result}. Example trajectories against ground truth are plotted in \textcolor{red}{Figure} \ref{}.
+The results are summarized in Table \ref{tab:vio_result}. Example trajectories against ground truth are plotted in Figure \ref{fig:posyaw_af}.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.85\linewidth]{figures/posyaw_af.png}
+    \caption{Example Trajectory (Run=AF). Black is the ground truth. Blue is with single IMU. Red is with averaged VIMU}
+    \label{fig:posyaw_af}
+\end{figure}
 
 From the result, different configurations perform similarly. Error reduction from averaging as in simulation is not seen. This is believed to be due to various imperfections from the real-world dataset.
 
