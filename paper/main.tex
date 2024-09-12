@@ -21,46 +21,47 @@
 \begin{document}
 
 % \title{Weighted Averaging of Multiple Non-collocated Inertial Measurement Units}
-\title{Tunable VIMU frame from averaging multiple Non-collocated IMUs}
+\title{Tunable Virtual IMU Frame by Averaging Multiple Non-collocated IMUs}
 
-\author{\IEEEauthorblockN{1\textsuperscript{st} Yizhou Gao}
-% \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-% \textit{name of organization (of Aff.)}\\
-% City, Country \\
-% email address or ORCID}
+\author{\IEEEauthorblockN{Yizhou Gao}
+\IEEEauthorblockA{\textit{Institute for Aerospace Studies} \\
+\textit{University of Toronto}\\
+Toronto, Canada \\
+yizhou.gao@robotics.utias.utoronto.ca}
 \and
-\IEEEauthorblockN{2\textsuperscript{nd} Timothy D. Barfoot}
-% \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-% \textit{name of organization (of Aff.)}\\
-% City, Country \\
-% email address or ORCID}
-}
+\IEEEauthorblockN{Timothy D. Barfoot}
+\IEEEauthorblockA{\textit{Institute for Aerospace Studies} \\
+\textit{University of Toronto}\\
+Toronto, Canada \\
+tim.barfoot@utoronto.ca}}
 
 \maketitle
 
 \begin{abstract}
-Multi-IMU fusion has been an effective way of improving MEMS IMU accuracy. In this article, we discuss an averaging technique for multiple IMUs with physical separation. We also present methods of selecting weighting terms such that we can minimize the uncertainty in fused sensor output and select the placement of the reference frame of the combined virtual IMU (VIMU). We tested our method in simulation and validated it on a real dataset. The results show that the averaging technique works for IMUs with large separation and performance gain is observed in simulation compared to using only a single IMU.
+Multi-IMU fusion has been an effective way of improving MEMS IMU accuracy. In this article, we discuss an averaging technique for multiple IMUs with physical separation. We also present methods of selecting weighting terms such that we can minimize the uncertainty in fused sensor output and select the placement of the reference frame of the combined virtual IMU (VIMU). The VIMU can be placed to be concident with, for example, a camera frame or GNSS frame thereby offering a quality-of-life improvement for users. We tested our method in simulation and validated it on a real dataset. The results show that the averaging technique works for IMUs with large separation and performance gain is observed in both simulation and real experiment compared to using only a single IMU.
 \end{abstract}
 
 \begin{IEEEkeywords}
-IMU, multi-IMU, sensor fusion, VINS
+IMU, multi-IMU, VIMU, sensor fusion, VINS
 \end{IEEEkeywords}
 
 \section{Introduction}
 
-An inertial measurement unit combining a gyroscope and accelerometer that provides measurement of angular velocity and linear acceleration has wide application in robotics and UAS. By integrating the measurement, one can track the relative orientation and position of the system to certain degree of accuracy within reasonable time frame \cite{tang2022_preintegration}. However due to the interoceptive nature of an IMU, it is often paired with additional sensors such as camera, lidar, or GNSS to reduce drift \cite{alaba2024_gps_and_imu, shan2020_liosam, he2020_visual_imu_and_gps}. In general, there are two main approaches to the tracking problem with an IMU: filter-based and graph optimization with pre-integrated IMU measurements.
+An inertial measurement unit combining a gyroscope and accelerometer that provides measurement of angular velocity and linear acceleration has wide application in robotics. By integrating the measurement, one can track the relative orientation and position of the system to certain degree of accuracy within a reasonable time frame \cite{tang2022_preintegration}. However, due to the interoceptive nature of an IMU, it is often paired with additional sensors such as camera, lidar, or GNSS to reduce drift \cite{alaba2024_gps_and_imu, shan2020_liosam, he2020_visual_imu_and_gps}.
 
-In the filter-based approach, the IMU measurement is used as process input to an Extended Kalman Filter in the propagation step. Then the measurements from other exteroceptive sensors are used for state correction in the update step. One such example is the MSCKF (Multi-State Constraint Kalman Filter) proposed in \cite{Anastasios2007_MSCKF}, which uses the IMU for propagation and a camera for correction. It proposes a measurement model that directly relates two robot poses based on the landmark observation in the camera but independent from the landmark position itself. This allows for efficient tracking without including the positions of landmarks as part of the state vector as in traditional EKF-SLAM.
+% In general, there are two main approaches to the tracking problem with an IMU: filter-based and graph optimization with pre-integrated IMU measurements.
 
-For the graph-optimization approach, such as VINS-MONO \cite{qin2018_vins-mono}, a pose graph is constructed by solving tightly coupled, nonlinear optimization problem with preintegrated IMU measurement and camera observations. Pose-graph optimization is run at the end to ensure global consistency.
+% In the filter-based approach, the IMU measurement is used as process input to an Extended Kalman Filter in the propagation step. Then the measurements from other exteroceptive sensors are used for state correction in the update step. One such example is the MSCKF (Multi-State Constraint Kalman Filter) proposed in \cite{Anastasios2007_MSCKF}, which uses the IMU for propagation and a camera for correction. It proposes a measurement model that directly relates two robot poses based on the landmark observation in the camera but independent from the landmark position itself. This allows for efficient tracking without including the positions of landmarks as part of the state vector as in traditional EKF-SLAM.
 
-Among many sensor configurations with an IMU, monocular camera plus IMU is one of the minimal configuration that is well-studied \cite{qin2018_vins-mono, 10616216}. Also IMU has been used heavily as a complementary sensor for GPS in GNSS-denied environment \cite{1008998, 8987949}. Based on these minimal configurations, various extension has been made. UMS-VINS \cite{jiang2023_UMS-VINS} provides a unified framework for using monocular and stereo cameras in visual-inertial odometry. Also the MSCKF framework \cite{Anastasios2007_MSCKF} works for multiple cameras with an IMU. There are also works that aim to provide a complete framework to incorporate multiple different sensors in one unified system \cite{10587194}.
+% For the graph-optimization approach, such as VINS-MONO \cite{qin2018_vins-mono}, a pose graph is constructed by solving tightly coupled, nonlinear optimization problem with preintegrated IMU measurement and camera observations. Pose-graph optimization is run at the end to ensure global consistency.
+
+Among many sensor configurations with an IMU, monocular camera plus IMU is one of the minimal configurations that is well-studied \cite{qin2018_vins-mono, 10616216}. Also IMU has been used heavily as a complementary sensor for GPS in GNSS-denied environment \cite{1008998, 8987949}. Based on these minimal configurations, various extensions have been made. UMS-VINS \cite{jiang2023_UMS-VINS} provides a unified framework for using monocular and stereo cameras in visual-inertial odometry. Also the MSCKF framework \cite{Anastasios2007_MSCKF} works for multiple cameras with an IMU. There are also works that aim to provide a complete framework to incorporate multiple different sensors in one unified system \cite{10587194}.
 
 To improve robustness, there have being works in introducing redundant IMUs for fault detection to build fault tolerance system. To detect a measurement error, \cite{Sturza1988_redundant} proposed parity vector based on hypothesis testing. Optimal geometric configuration of multiple redundant IMUs is also explored in \cite{Colomina2004REDUNDANTIF, guerrier2009, xue2023}.
 
-Despite works mentioned above, most systems and applications still only use single IMU in the estimation pipeline. The vehicle frame is choose to be at the frame of reference of the IMU to avoid introducing additional kinematics terms from the lever arm effect.
+Despite the works mentioned above, most systems and applications still only use a single IMU in the estimation pipeline. The vehicle frame is chosen to be at the frame of reference of the IMU to avoid introducing additional kinematics terms from the lever-arm effect. If such IMU frame differ from a frame of reference of concern, additional transformation is needed after the estimation pipeline.
 
-In this article we present that through weighted averaging of multiple non-collocated IMUs, we can choose arbitrary VIMU frame of reference within solvable domain.
+In this article, we show that through a weighted averaging of multiple non-collocated IMUs, we can choose an arbitrary VIMU frame of reference that gives quality-of-life improvement and offering additional benefit of reduced noise and bias drift.
 
 \section{Related Work}
 
@@ -70,40 +71,40 @@ In this section, we will introduce some prior works on fusing multiple IMUs for 
 
 \subsection{Sensor Level Fusion - Virtual IMU}\label{VIMU}
 
-One category of approach is to perform fusion of multiple IMUs before using the measurement in inertial navigation system (INS). For example, \cite{jafari2014_PEM} uses Prediction Error Minimization method to model noise of IMUs and use Kalman filter to estimate the optimal process signal. \cite{xue2023} proposed to use Kalman filter to estimate the angular velocity measured by multiple non-orthogonal gyroscopes. Instead of using Kalman filter, an easier approach would be to directly average multiple gyroscopes after aligned under a common virtual IMU frame as discussed in \cite{waegli2008, patel2022_multi-imu, Colomina2004REDUNDANTIF}.
+One approach is to perform fusion of multiple IMUs before using the measurement in inertial navigation system (INS). For example, \cite{jafari2014_PEM} uses Prediction Error Minimization method to model noise of IMUs and uses a Kalman filter to estimate the optimal process signal. \cite{xue2023} proposed to use a Kalman filter to estimate the angular velocity measured by multiple non-orthogonal gyroscopes. Instead of using a Kalman filter, an easier approach would be to directly average multiple gyroscopes after aligned under a common virtual IMU frame as discussed in \cite{waegli2008, patel2022_multi-imu, Colomina2004REDUNDANTIF}.
 
-However, averaging of multiple accelerometers was not considered due to the additional acceleration terms from rotation (lever arm effect), unless they are closely placed and the separations in between are ignored.
+However, averaging of multiple accelerometers was not considered due to the additional acceleration terms from rotation (lever arm effect), unless they are closely placed and the separations in between are ignored. In section \ref{methodology} we will show how it is possible to average multiple accelerometers even with separations.
 
 \subsection{State Augmentation with Multiple IMUs}\label{augmented}
 
-Typically state estimation problem with a IMU involves tracking the orientation, linear velocity and linear acceleration of the vehicle (commonly defined at the IMU). With additional IMUs, additional state variables like linear acceleration, angular velocity and angular acceleration are added. This allows using the full mechanization model of accelerometer as measurement update in Kalman filter \cite{Bancroft2011DataFA, Beaudoin2018_satelite}.
+Typically, a state estimation problem with a IMU involves tracking the orientation, linear velocity, and linear acceleration of the vehicle (commonly defined at the IMU). With additional IMUs, additional state variables such as linear acceleration, angular velocity, and angular acceleration are added. This allows using the full mechanization model of accelerometer as the measurement update in the Kalman filter \cite{Bancroft2011DataFA, Beaudoin2018_satelite}. On the contrary, our approach only involves averaging the measurements thus keeping the computational overhead minimal.
 
 \subsection{Stacked IMU States with Geometric Constraints}\label{constraint}
 
-Another approach is to track the state of each IMU individually and associate them with geometric constraints \cite{waegli2008, Beaudoin2018_satelite}. Using multiple IMUs and cameras, \cite{Eckenhoff2021_MIMC-VINS} proposed to track all stacked states of base and auxillary IMUs using MSCKF \cite{Anastasios2007_MSCKF}. Assuming the extrinsic calibrations of all IMUs are known and fixed, relative geometric constraints is imposed between states of different IMUs in the form of measurement update in addition to camera observations.
+Another approach is to track the state of each IMU individually and associate them with geometric constraints \cite{waegli2008, Beaudoin2018_satelite}. Using multiple IMUs and cameras, \cite{Eckenhoff2021_MIMC-VINS} proposed to track all stacked states of base and auxillary IMUs using MSCKF \cite{Anastasios2007_MSCKF}. Assuming the extrinsic calibrations of all IMUs are known and fixed, relative geometric constraints are imposed between states of different IMUs in the form of measurement updates in addition to camera observations. Our approach allows fusing the information from multiple IMUs without the need of introducing the extra geometric constraints in the state estimation pipeline.
 
 \subsection{Distributed INS}\label{distributed}
 
-Last common approach would be to have individual state estimator for each IMU system each performing local propagation and correction. Simple state fusion is performed with each estimator's estimate \cite{Bancroft2011DataFA, patel2022_multi-imu}.
+The last common approach is to have an individual state estimator for each IMU system each performing local propagation and correction. Simple state fusion is performed with each estimator's estimate \cite{Bancroft2011DataFA, patel2022_multi-imu}. Our approach avoids the need to run several state estimators which can be expensive.
 
 \subsection{Summary}
 
-As presented, multiple approaches have being proposed. \ref{constraint} would be computationally expensive if number of IMU are large as it has many states all in one Kalman filter. The averaging approach in \ref{VIMU} would be the simplest to implement and doesn't significantly alter the existing single IMU framework. However, due to the lever arm effect, averaging multiple accelerometers that are physically separated is not visited. In \ref{methodology} we present that it is still possible to average the accelerometers despite the separation and give a tunable VIMU frame as a result.
+As presented, multiple approaches have being proposed. \ref{constraint} would be computationally expensive if the number of IMUs is large as it has many states all in one Kalman filter. The averaging approach in \ref{VIMU} would be the simplest to implement and does not significantly alter the existing single IMU framework. However, due to the lever-arm effect, averaging multiple accelerometers that are physically separated is not visited. We will show that it is still possible to average the accelerometers despite the separation and give a tunable VIMU frame as a result.
 
 \section{Preliminaries}
 
 \subsection{Definitions}
 
-In this discussion, we use the following four frames of reference. 1) Inertial frame $\bm{\mathcal{F}}_i$. 2) Body frame $\bm{\mathcal{F}}_b$ is for expressing sensor extrinsic calibration relative to some mechanical datum. 3) Sensor frame $\bm{\mathcal{F}}_s$ is the local frame of reference at each sensor. 4) Vehicle frame $\bm{\mathcal{F}}_v$ is for tracking vehicle pose in state estimation pipeline. In later section we use vehicle frame interchangeably with VIMU frame.
+In this discussion, we use the following four frames of references: 1) inertial frame $\bm{\mathcal{F}}_i$, 2) body frame $\bm{\mathcal{F}}_b$ is for expressing sensor extrinsic calibration relative to some mechanical datum, 3) sensor frame $\bm{\mathcal{F}}_s$ is the local frame of reference at each sensor, 4) VIMU frame or Vehicle frame $\bm{\mathcal{F}}_v$ is for tracking vehicle pose in state estimation pipeline.
 
-For any point $\textbf{p}$ or vector we define as $\textbf{r}_i^{pi}$ in inertial frame $\mathcal{F}_i$. For example, the vehicle position in inertial frame thus become $\textbf{r}_i^{vi}$.
+For any point $\textbf{p}$ or vector we define as $\textbf{r}_i^{pi}$ in the inertial frame $\bm{\mathcal{F}}_i$. For example, the vehicle position in the inertial frame thus becomes $\textbf{r}_i^{vi}$.
 
-When referring to the pose of a vehicle, it is the tuple of $\{\textbf{C}_{iv}, \textbf{r}_i^{vi}\}$ which forms the transformation matrix as follow,
+When referring to the pose of a vehicle, it is the tuple of $\{\textbf{C}_{iv}, \textbf{r}_i^{vi}\}$, which forms the transformation matrix as follows:
 $$
 \textbf{T}_{iv} = \left[\begin{matrix}
     \textbf{C}_{iv} & \textbf{r}_i^{vi} \\
     \textbf{0} & 1
-\end{matrix}\right]
+\end{matrix}\right].
 $$
 
 The pose can be used to transform point $\textbf{r}_v^{pv}$ expressed in vehicle frame $\bm{\mathcal{F}}_v$ into inertial frame $\bm{\mathcal{F}}_i$ as $\textbf{r}_i^{pi}$:
@@ -111,104 +112,108 @@ $$
 \left[\begin{matrix} \textbf{r}_i^{pi} \\ 1 \end{matrix}\right]
     = \textbf{T}_{iv} \left[\begin{matrix} \textbf{r}_v^{pv} \\ 1 \end{matrix}\right]
 \quad \text{or} \quad
-\textbf{r}_i^{pi} = \textbf{C}_{iv} \textbf{r}_v^{pv} + \textbf{r}_i^{vi}
+\textbf{r}_i^{pi} = \textbf{C}_{iv} \textbf{r}_v^{pv} + \textbf{r}_i^{vi}.
 $$
 
-In this document $*^\wedge$ is specifically used for expressing a $\mathbb{R}^3$ as skew symmetric matrix.
+In this document $^\wedge$ is specifically used for rendering an element of $\mathbb{R}^3$ as a skew-symmetric matrix:
 $$
 \bm{\omega}^\wedge = \left[\begin{matrix}
     0 & -\omega_2 & \omega_1 \\
     \omega_2 & 0 & -\omega_3 \\
     -\omega_1 & \omega_3 & 0
-\end{matrix}\right]
+\end{matrix}\right].
 $$
 
-If a quantity is in the form $x(t)$ then it is a time-varying quantity, otherwise it is time-invariant.
+If a quantity is in the form $x(t)$, then it is a time-varying quantity, otherwise it is time-invariant.
 
 \subsection{Rigid-Body Kinematics}
 
-The state propagation using IMU measurement follows the rigid-body kinematics in world fixed frame.
+The state propagation using IMU measurements follows the rigid-body kinematics in world fixed frame:
 \begin{equation}
 \begin{align}
-    \dot{\textbf{C}}(t) &= \textbf{C}(t) \bm{\omega}(t)^\wedge \\
-    \dot{\textbf{v}}(t) &= \textbf{C}(t) \textbf{a}(t) - \textbf{g} \\
-    \dot{\textbf{p}}(t) &= \textbf{v}(t)
+    \dot{\textbf{C}}(t) &= \textbf{C}(t) \bm{\omega}(t)^\wedge, \\
+    \dot{\textbf{v}}(t) &= \textbf{C}(t) \textbf{a}(t) - \textbf{g}, \\
+    \dot{\textbf{p}}(t) &= \textbf{v}(t).
 \end{align}
 \end{equation}
 
-Here $\textbf{C}$ is short for $\textbf{C}_{iv}$, $\textbf{v}$ is short for $\textbf{v}_i^{vi}$, and $\textbf{p}$ is for the position of the vehicle $\textbf{r}_i^{vi}$. These three formed the 9-dof state variables.
+Here $\textbf{C}$ is short for $\textbf{C}_{iv}$, $\textbf{v}$ is short for $\textbf{v}_i^{vi}$, and $\textbf{p}$ is for the position of the vehicle $\textbf{r}_i^{vi}$. These three form a 9-DOF state.
 
-In addition, $\textbf{g}$ is the acceleration from gravity and $\bm{\omega}$ and $\textbf{a}$ are the true angular velocity and true linear acceleration in vehicle frame.
+In addition, $\textbf{g}$ is the acceleration from gravity and $\bm{\omega}$ and $\textbf{a}$ are the true angular velocity and true linear acceleration in the vehicle frame.
 
 \subsection{IMU Measurement Model}
 
-For the angular velocity measurement from gyroscope we have the following measurement model.
+For the angular velocity measurement from a gyroscope we have the following measurement model:
 
 \begin{equation}
-    \textbf{y}_\omega(t) = \bm{\omega}(t) + \textbf{b}_\omega(t) + \textbf{n}_\omega(t)
+    \textbf{y}_\omega(t) = \bm{\omega}(t) + \textbf{b}_\omega(t) + \textbf{n}_\omega(t),
 \end{equation}
 
-Where $\textbf{b}_\omega$ is the bias of gyroscope measurement due to random walk and $\textbf{n}_\omega$ is the additive white noise of the measurement. Similarly we have the following measurement model for accelerometer at vehicle frame. Here $\textbf{b}_a$ is the bias of accelerometer and $\textbf{n}_a$ is the noise of the acceleration measurement.
+\noindent where $\textbf{b}_\omega$ is the bias of gyroscope measurement due to random walk and $\textbf{n}_\omega$ is the additive white noise of the measurement. Similarly, we have the following measurement model for an accelerometer at the vehicle frame:
 
 \begin{equation}
-    \textbf{y}_a(t) = \textbf{a}(t) + \textbf{b}_a(t) + \textbf{n}_a(t)
+    \textbf{y}_a(t) = \textbf{a}(t) + \textbf{b}_a(t) + \textbf{n}_a(t),
 \end{equation}
 
-Bias drifts of IMU are modeled as random walk with the bias drift rate sampled from a Gaussian noise.
+\noindent here $\textbf{b}_a$ is the bias of accelerometer and $\textbf{n}_a$ is the noise of the acceleration measurement.
+
+Bias drifts of IMU are modeled as random walk with the bias drift rate sampled from a Gaussian noise:
 \begin{equation}
 \begin{split}
-    \dot{\textbf{b}}_\omega(t) &= \textbf{w}_\omega(t) \\
-    \dot{\textbf{b}}_a(t) &= \textbf{w}_a(t)
+    \dot{\textbf{b}}_\omega(t) &= \textbf{w}_\omega(t), \\
+    \dot{\textbf{b}}_a(t) &= \textbf{w}_a(t).
 \end{split}
 \end{equation}
 
-Due to the presence of biases, it is estimated as part of the state vector and subtracted from the raw measurement to get the unbiased measurement for propagation.
+\noindent Due to the presence of biases, it is estimated as part of the state vector and subtracted from the raw measurement to get the "unbiased" measurement for propagation:
 \begin{equation}
 \begin{split}
-    \hat{\bm{\omega}}(t) = \textbf{y}_\omega(t) - \hat{\textbf{b}}_\omega(t) \\
-    \hat{\textbf{a}}(t)  = \textbf{y}_a(t) - \hat{\textbf{b}}_a(t)
+    \hat{\bm{\omega}}(t) = \textbf{y}_\omega(t) - \hat{\textbf{b}}_\omega(t), \\
+    \hat{\textbf{a}}(t)  = \textbf{y}_a(t) - \hat{\textbf{b}}_a(t).
 \end{split}
 \end{equation}
 
-For IMU not at vehicle frame, measurement are in each IMU's local frame and we have additional terms in acceleration measurement due to lever arm effect.
-\begin{equation}
-    \textbf{y}_{\omega,i}(t) = \textbf{C}_{i}^{-1} \bm{\omega}(t) + \textbf{b}_{\omega, i}(t) + \textbf{n}_{\omega,i}(t)
-\end{equation}
+For an IMU not located at the vehicle frame, measurements are in each IMU's local frame and we have additional terms in the acceleration measurement due to lever arm effect:
 \begin{equation}
 \begin{split}
+    \textbf{y}_{\omega,i}(t) &= \textbf{C}_{i}^{-1} \bm{\omega}(t) + \textbf{b}_{\omega, i}(t) + \textbf{n}_{\omega,i}(t), \\
     \textbf{y}_{a,i}(t) &= \textbf{C}_i^{-1} \left[ \textbf{a}(t) + \bm{\omega}(t)^\wedge (\bm{\omega}(t)^\wedge \textbf{r}_i) + \bm{\alpha}(t)^\wedge \textbf{r}_i \right] \\
-    &+ \textbf{b}_{a,i}(t) + \textbf{n}_{a,i}(t)
+    &+ \textbf{b}_{a,i}(t) + \textbf{n}_{a,i}(t).
 \end{split}
 \end{equation}
 
-Here we have $\textbf{C}_i$ and $\textbf{r}_i$ short for $\textbf{C}_{vs}$ and $\textbf{r}_v^{sv}$ defining the pose $\textbf{T}_{vs}$ of the $i$-th IMU in vehicle frame.
+\noindent Here we have $\textbf{C}_i$ and $\textbf{r}_i$ short for $\textbf{C}_{vs}$ and $\textbf{r}_v^{sv}$ defining the pose $\textbf{T}_{vs}$ of the $i$-th IMU in the vehicle frame.
 
 \section{Methodology}\label{methodology}
 
 \subsection{Averaging Multiple Gyroscopes}
 
-First we align the gyroscope measurement with the vehicle frame.
+First, we align the gyroscope measurements with the vehicle frame:
 \begin{equation}
-    \textbf{C}_{i} \textbf{y}_{\omega,i}(t) = \bm{\omega}(t) + \textbf{C}_{i} \textbf{b}_{\omega, i}(t) + \textbf{C}_{i} \textbf{n}_{\omega,i}(t)
+    \textbf{C}_{i} \textbf{y}_{\omega,i}(t) = \bm{\omega}(t) + \textbf{C}_{i} \textbf{b}_{\omega, i}(t) + \textbf{C}_{i} \textbf{n}_{\omega,i}(t).
 \end{equation}
 
-The weighted average ($\sum_i{w_i} = 1$) of all gyroscope is simply,
+\noindent The weighted average of all gyroscopes is simply,
 \begin{equation}
 \begin{split}
-    \bar{\textbf{y}}_\omega(t) &= \sum_i{w_i \textbf{C}_{i} \textbf{y}_\omega(t)} \\
+    \bar{\textbf{y}}_\omega(t) &= \sum_i{w_i \textbf{C}_{i} \textbf{y}_{\omega,i}(t)} \\
     &= \sum_i{w_i \left( \bm{\omega}(t) + \textbf{C}_{i} \textbf{b}_{\omega,i}(t) + \textbf{C}_{i} \textbf{n}_{\omega,i}(t) \right)} \\
     &= \bm{\omega}(t) + \sum_i{w_i \textbf{C}_{i} \textbf{b}_{\omega,i}(t)} + \sum_i{w_i \textbf{C}_{i} \textbf{n}_{\omega,i}(t)}
 \end{split}
 \end{equation}
 
-We see that the averaged measurement can be summarized as,
+\noindent Where $w_i$ are the weights with $\sum_i{w_i} = 1$.
+
+We see that the averaged measurement can be summarized as
 \begin{equation}
-    \bar{\textbf{y}}_\omega(t) = \bm{\omega}(t) + \bar{\textbf{b}}_\omega(t) + \bar{\textbf{n}}_\omega(t)
+    \bar{\textbf{y}}_\omega(t) = \bm{\omega}(t) + \bar{\textbf{b}}_\omega(t) + \bar{\textbf{n}}_\omega(t),
 \end{equation}
+
+\noindent where $\bar{\textbf{b}}_\omega(t) = \sum_i{w_i \textbf{C}_{i} \textbf{b}_{\omega,i}(t)}$ and $\bar{\textbf{n}}_\omega(t) = \sum_i{w_i \textbf{C}_{i} \textbf{n}_{\omega,i}(t)}$ are the combined biases and noises.
 
 \subsection{Averaging Multiple Accelerometers}
 
-Align all accelerometer measurements to vehicle frame we have,
+Aligning all accelerometer measurements to the vehicle frame, we have
 \begin{equation}\label{eqn_accel}
 \begin{split}
     \textbf{C}_{i} \textbf{y}_{a,i}(t) &= \textbf{a}(t) + \bm{\omega}(t)^\wedge (\bm{\omega}(t)^\wedge \textbf{r}_i) + \bm{\alpha}(t)^\wedge \textbf{r}_i \\
@@ -216,80 +221,80 @@ Align all accelerometer measurements to vehicle frame we have,
 \end{split}
 \end{equation}
 
-Summing equation (\ref{eqn_accel}) of all accelerometers gives,
+\noindent Summing (\ref{eqn_accel}) over all accelerometers gives
 \begin{equation}
 \begin{split}
-    \bar{\textbf{y}}_a(t) &= \sum_i{w_i \textbf{C}_{i} \textbf{y}_a(t)} \\
+    \bar{\textbf{y}}_a(t) &= \sum_i{w_i \textbf{C}_{i} \textbf{y}_{a,i}(t)} \\
     &= \textbf{a}(t) + \sum_i{w_i \textbf{C}_{i} \textbf{b}_{a,i}(t)} + \sum_i{w_i \textbf{C}_{i} \textbf{n}_{a,i}(t)} \\
     &+ \sum_i{w_i \bm{\omega}(t)^\wedge (\bm{\omega}(t)^\wedge \textbf{r}_i)} + \sum_i{w_i \bm{\alpha}(t)^\wedge \textbf{r}_i} \\
 \end{split}
 \end{equation}
 
-Using the associate rule $\textbf{a}^\wedge \textbf{b} + \textbf{a}^\wedge \textbf{c} = \textbf{a}^\wedge \left(\textbf{b} + \textbf{c}\right)$, we have,
-\begin{equation}
+\noindent Using the fact that $^\wedge$ is linear, we have
+\begin{equation}\label{accel_avg_final}
 \begin{split}
-    \bar{\textbf{y}}_a(t) &= \sum_i{w_i \textbf{C}_{i} \textbf{y}_a(t)} \\
+    \bar{\textbf{y}}_a(t) &= \sum_i{w_i \textbf{C}_{i} \textbf{y}_{a,i}(t)} \\
     &= \textbf{a}(t) + \sum_i{w_i \textbf{C}_{i} \textbf{b}_{a,i}(t)} + \sum_i{w_i \textbf{C}_{i} \textbf{n}_{a,i}(t)} \\
-    &+ \bm{\omega}(t)^\wedge \left(\bm{\omega}(t)^\wedge \left( \sum_i{w_i \textbf{r}_i} \right) \right) + \bm{\alpha}(t)^\wedge \left( \sum_i{w_i\textbf{r}_i} \right)\\
+    &+ \bm{\omega}(t)^\wedge \left(\bm{\omega}(t)^\wedge \left( \sum_i{w_i \textbf{r}_i} \right) \right) + \bm{\alpha}(t)^\wedge \left( \sum_i{w_i\textbf{r}_i} \right).
 \end{split}
 \end{equation}
 
-We see that if $\sum_i{w_i \textbf{r}_i} = \textbf{0}$ then we can eliminate the last two terms from lever arm effect. This gives,
+\noindent We see that if $\sum_i{w_i \textbf{r}_i} = \textbf{0}$, then we can {\em eliminate} the last two terms from the lever-arm effect. This simplifies (\ref{accel_avg_final}) to
 \begin{equation}
-    \bar{\textbf{y}}_a(t) = \textbf{a}(t) + \bar{\textbf{b}}_a(t) + \bar{\textbf{n}}_a(t)
+    \bar{\textbf{y}}_a(t) = \textbf{a}(t) + \bar{\textbf{b}}_a(t) + \bar{\textbf{n}}_a(t).
 \end{equation}
 
 \subsection{VIMU from Weighted Average}\label{AA}
 
-As we can see, if we choose the vehicle frame and weights of accelerometers such that $\sum_i{w_i \textbf{r}_i} = \textbf{0}$, then we can ignore the separation of all IMUs and fuse the accelerometer measurement through averaging.
+As we can see, if we choose the vehicle frame and weights of theaccelerometers such that $\sum_i{w_i \textbf{r}_i} = \textbf{0}$, then we can ignore the separation of all IMUs and fuse the accelerometer measurements through averaging. The result is an virtual IMU at the weighted centroid without any lever-arm effects.
 
-Since gyroscope measurement is location independent, we can choose different weights for averaging gyroscope and accelerometers.
+Since gyroscope measurement is location independent, we can choose different weights for averaging gyroscopes and accelerometers.
 
-Since all biases are slow-varying, the combined biases are also slow-varying. So instead of tracking individual biases, only the combined biases are needed. When receiving new set of IMU measurement, we estimate the angular velocity and linear acceleration with the update equations below.
+Because all biases are slowly varying, the combined biases are also slowly varying. Therefore, instead of tracking individual biases, only the combined biases are needed. When receiving a new set of IMU measurements, we estimate the angular velocity and linear acceleration with the simple update equations below:
 \begin{equation}
 \begin{split}
-    \hat{\bm{\omega}}(t) = \bar{\textbf{y}}_\omega(t) - \hat{\bar{\textbf{b}}}_\omega(t) \\
-    \hat{\textbf{a}}(t)  = \bar{\textbf{y}}_a(t) - \hat{\bar{\textbf{b}}}_a(t)
+    \hat{\bm{\omega}}(t) = \bar{\textbf{y}}_\omega(t) - \hat{\bar{\textbf{b}}}_\omega(t), \\
+    \hat{\textbf{a}}(t)  = \bar{\textbf{y}}_a(t) - \hat{\bar{\textbf{b}}}_a(t).
 \end{split}
 \end{equation}
 
-The combined measurement is expected to have slower drift and the estimate is expected to be less noisy as well \cite{patel2022_multi-imu}. If having $n$ identical IMUs and equal weight the standard deviation of the combined noise or drift rate is expected to be,
+The combined measurements are expected to have slower drift and the estimate is expected to be less noisy as well \cite{patel2022_multi-imu}. If having $n$ identical IMUs and equal weights the standard deviation of the combined noise or drift rate is expected to be $\bar{\sigma} = \sigma / \sqrt{n}$.
+% \begin{equation}
+%     \bar{\sigma} = \frac{\sigma}{\sqrt{n}}
+% \end{equation}
+
+\subsection{Selecting Weights for Minimal Uncertainty}\label{solve_weight_by_noise}
+
+When selecting weights for gyroscopes, or for accelerometers under the condition that the selection of vehicle frame is flexible, we can minimize the output noise or bias drift rate. Below, we take the bias drift as an example but similar ideas can be applied to the output noise.
+
+The combined drift rate is as follows.
 \begin{equation}
-    \bar{\sigma} = \frac{\sigma}{\sqrt{n}}
+    \dot{\bar{\textbf{b}}}(t) = \sum_i{w_i \textbf{C}_i \textbf{w}_i(t)}.
 \end{equation}
 
-\subsection{Selecting Weight for Minimal Uncertainty}\label{solve_weight_by_noise}
-
-When selecting weight for gyroscopes, or for accelerometers under the condition that the selection of vehicle frame is flexible, we can minimize the output noise or bias drift rate. Below we take the bias drift as an example but similar idea can be applied to the output noise.
-
-The combined drift rate is as follow. Here we drop the subscript as it is the same for both gyroscope drift and accelerometer drift.
+\noindent Here we drop the subscript as it is the same for both gyroscope drift and accelerometer drift. The covariance of the combined drift rate is the weighted sum of the noise covariances of each IMU:
 \begin{equation}
-    \dot{\bar{\textbf{b}}}(t) = \sum_i{w_i \textbf{C}_i \textbf{w}_i(t)}
+    \bar{\bm{\Sigma}} = \sum_i{w_i^2 \bm{\Sigma}_i}.
 \end{equation}
 
-The covariance of the combined drift rate would be the weighted sum of the noise covariance of each IMU.
-\begin{equation}
-    \bar{\bm{\Sigma}} = \sum_i{w_i^2 \bm{\Sigma}_i}
-\end{equation}
+\noindent We can then solve for the weights that minimize the trace of the combined covariance.
 
-One can then solve for the weights that minimize the trace or the sum of the singular value of the covariance.
-
-Since most IMU have isotropic noise for all three axes, the combined variance simplifies to,
+If the IMU have isotropic noise for all three axes, the combined variance simplifies to
 \begin{equation}\label{noise_reduction_asym}
-    \bar{\sigma}^2 = \sum_i{w_i^2 \sigma_i^2}
+    \bar{\sigma}^2 = \sum_i{w_i^2 \sigma_i^2}.
 \end{equation}
 
-Further more, if using $n$ same IMU and equation weighting, the combined variance is simply,
+\noindent Furthermore, if using $n$ of the same IMUs and equal weighting, the combined variance is simply
 \begin{equation}\label{noise_reduction_sym}
-    \bar{\sigma}^2 = \sum_i{w_i^2 \sigma^2} = n \left(\frac{\sigma}{n}\right)^2 = \frac{\sigma^2}{n}
+    \bar{\sigma}^2 = \sum_i{w_i^2 \sigma^2} = n \left(\frac{\sigma}{n}\right)^2 = \frac{\sigma^2}{n}.
 \end{equation}
 
-\subsection{Selecting Weight for VIMU Frame Placement}
+\subsection{Selecting Weights for VIMU Frame Placement}
 
-Given that $\sum_i{w_i \textbf{r}_i} = \textbf{0}$, if there are only two IMUs, we can only place the vehicle frame on the line through the center of the two IMUs. If there are three IMUs, we can only place the vehicle frame on the plane formed by the three IMUs. If there are four non-coplanar IMUs, then in theory, we can place the vehicle frame anywhere. However, placing the vehicle frame outside of the convex hull of the IMUs will increase the output noise which is usually not desired.
+Given that $\sum_i{w_i \textbf{r}_i} = \textbf{0}$, if there are only two IMUs, we can only place the VIMU frame on the line through the center of the two IMUs. If there are three IMUs, we can only place the VIMU frame on the plane formed by the three IMUs. If there are four non-coplanar IMUs, then in theory, we can place the VIMU frame anywhere. However, placing the VIMU frame outside of the convex hull of the IMUs will increase the output noise which is usually not desirable.
 
-When we have a reachable vehicle frame in mind, we need to solve for the weight. Assuming we have arbitrarily many IMUs, then the problem can be formulated as below.
-\begin{equation}
+When we have a target vehicle frame in mind, we need to solve for the required weights. Assuming we have arbitrarily many IMUs, then the problem can be formulated as an optimization problem:
+\begin{equation}\label{opt_problem}
 \begin{split}
     \min_{w_i}{\frac{1}{2} \sum{w_i^2 \sigma_i^2}} \quad \text{s.t. }
     \begin{cases}
@@ -299,66 +304,66 @@ When we have a reachable vehicle frame in mind, we need to solve for the weight.
 \end{split}
 \end{equation}
 
-Here $\textbf{r}_i$ is the relative position of the IMUs to the selected vehicle frame. We used the objective to reduce output noise as shown in section \ref{solve_weight_by_noise}. Since it is a quadratic programming problem, it is possible to find a close-form solution.
+\noindent Here $\textbf{r}_i$ is the relative position of the IMUs to the selected VIMU frame. We chose the objective to reduce output noise as shown in section \ref{solve_weight_by_noise}. Since (\ref{opt_problem}) is a quadratic programming problem, it is possible to find a closed-form solution.
 
-The Lagrangian of the problem is $\mathcal{L} = \frac{1}{2}\textbf{w}^T \bm{\Sigma} \textbf{w} + \bm{\lambda}^T \textbf{R}\textbf{w} + \beta \left( 1 - \textbf{1}^T \textbf{w} \right)$ = 0 where $\bm{\Sigma} = \text{diag}(\sigma_1^2, ..., \sigma_n^2)$, $\textbf{R} = \left[\begin{matrix} \textbf{r}_0 & ... & \textbf{r}_n\end{matrix}\right]$ and $\textbf{1}^T = \left[\begin{matrix}1 & ... & 1\end{matrix}\right]$. This gives the following KKT conditions.
+The Lagrangian of the problem is $\mathcal{L} = \frac{1}{2}\textbf{w}^T \bm{\Sigma} \textbf{w} + \bm{\lambda}^T \textbf{R}\textbf{w} + \beta \left( 1 - \textbf{1}^T \textbf{w} \right)$ where $\textbf{w}^T = \left[\begin{matrix} w_1 \dots w_n \end{matrix}\right]$, $\bm{\Sigma} = \text{diag}(\sigma_1^2, ..., \sigma_n^2)$, $\textbf{R} = \left[\begin{matrix} \textbf{r}_0 \dots \textbf{r}_n\end{matrix}\right]$ and $\textbf{1}^T = \left[\begin{matrix}1 \dots 1\end{matrix}\right]$. This gives the following KKT conditions:
 \begin{equation}
-\begin{cases}
+\begin{split}
   \bm{\Sigma}\textbf{w} + \textbf{R}^T \bm{\lambda} - \beta \textbf{1} &= \textbf{0} \\
   \textbf{R} \textbf{w} &= \textbf{0} \\
   \textbf{1}^T \textbf{w} &= 1
-\end{cases}
+\end{split}
 \end{equation}
 
-Left multiple first KKT condition by $\textbf{w}^T$ we have,
+\noindent If we left multiple the first KKT condition by $\textbf{w}^T$, we have
 \begin{equation}
-\textbf{w}^T\bm{\Sigma}\textbf{w} + \textbf{w}^T\textbf{R}\bm{\lambda} - \beta \textbf{w}^T\textbf{1} = 0
+\textbf{w}^T\bm{\Sigma}\textbf{w} + \textbf{w}^T\textbf{R}\bm{\lambda} - \beta \textbf{w}^T\textbf{1} = 0.
 \end{equation}
 
-Since $\textbf{w}^T\textbf{R} = \textbf{0}$ and $\textbf{1}\textbf{w} = 1$ we have,
+\noindent Since $\textbf{w}^T\textbf{R} = \textbf{0}$ and $\textbf{1}\textbf{w} = 1$ this implies
 \begin{equation}\label{beta}
-    \beta = \textbf{w}^T\bm{\Sigma}\textbf{w}
+    \beta = \textbf{w}^T\bm{\Sigma}\textbf{w}.
 \end{equation}
 
-Left multiply the first KKT condition by $\bar{\textbf{R}} = \textbf{R}\bm{\Sigma}^{-1}$ gives,
+\noindent Left multiplying the first KKT condition by $\bar{\textbf{R}} = \textbf{R}\bm{\Sigma}^{-1}$ gives
 \begin{equation}
-\underbrace{\textbf{R}\textbf{w}}_{=\textbf{0}} + \bar{\textbf{R}}\textbf{R}^T\bm{\lambda} - \beta\bar{\textbf{R}}\textbf{1} = 0
+\underbrace{\textbf{R}\textbf{w}}_{=\textbf{0}} + \bar{\textbf{R}}\textbf{R}^T\bm{\lambda} - \beta\bar{\textbf{R}}\textbf{1} = 0.
 \end{equation}
 
-Here we define $\bar{\textbf{r}} = \bar{\textbf{R}}\textbf{1} = \sum{\textbf{r}_i / \sigma_i^2}$ and using pseudo-inverse of $\bar{\textbf{R}}\textbf{R}^T$ we have,
+\noindent Here we define $\bar{\textbf{r}} = \bar{\textbf{R}}\textbf{1} = \sum{\textbf{r}_i / \sigma_i^2}$ and using the pseudo-inverse of $\bar{\textbf{R}}\textbf{R}^T$, we have
 
 % assuming $\textbf{R}\textbf{R}^T$ is invertible due to having at least 3 non-colocated IMUs then we have,
 \begin{equation}\label{lambda}
-    \bm{\lambda} = \beta \left(\bar{\textbf{R}}\textbf{R}^T\right)^{+} \textbf{r}
+    \bm{\lambda} = \beta \left(\bar{\textbf{R}}\textbf{R}^T\right)^{+} \textbf{r}.
 \end{equation}
 
-Substitute equations (\ref{beta}) and (\ref{lambda}) into first KKT condition we have,
+\noindent Substitute equations (\ref{beta}) and (\ref{lambda}) into first KKT condition we have,
 \begin{equation}
-    \hat{\textbf{w}} = \frac{\textbf{w}}{\textbf{w}^T\bm{\Sigma}\textbf{w}} = \bm{\Sigma}^{-1} \left( \textbf{1} - \textbf{R}^T \left(\bar{\textbf{R}}\textbf{R}^T\right)^{+} \bar{\textbf{r}} \right)
+    \hat{\textbf{w}} = \frac{\textbf{w}}{\textbf{w}^T\bm{\Sigma}\textbf{w}} = \bm{\Sigma}^{-1} \left( \textbf{1} - \textbf{R}^T \left(\bar{\textbf{R}}\textbf{R}^T\right)^{+} \bar{\textbf{r}} \right).
 \end{equation}
 
-Lastly since $\sum_i{w_i} = 1$ we need to normalize the intermediate solution to get the final weights for accelerometers.
+\noindent Lastly, since $\sum_i{w_i} = 1$, we need to normalize the intermediate solution to get the final weights for the accelerometers:
 \begin{equation}
-    \textbf{w}^* = \frac{\hat{\textbf{w}}}{\textbf{1}^T \hat{\textbf{w}}}
+    \textbf{w}^* = \frac{\hat{\textbf{w}}}{\textbf{1}^T \hat{\textbf{w}}}.
 \end{equation}
 
 \section{Simulation}
 
-To check the correctness of the frame selection method through weighted averaging and to show performance benefit of the fused VIMU we first performed evaluation in simulation.
+To check the correctness of the frame-selection method through weighted averaging, and to show performance benefit of the fused VIMU, we first performed evaluation in simulation.
 
 \subsection{Data Generation}
 
-To generate the simulated data, we first use combination of sinusoidal functions to generate the ground truth angular velocity and linear acceleration in body frame as shown in Figure \ref{fig:omega} and Figure \ref{fig:accel}. Then we integrate them to generate the ground truth trajectory. We selected MPU6050, a common MEMS IMU in the mechatronics community as the example model. For each IMU, we simulate its measurements given the relative transformation in body frame and added noises and biases. Each IMU is sampled at 100 Hz. All of the above is done using utilities like \texttt{kinematicTrajectory} and \texttt{imuSensor} provided by MATLAB.
+To generate the simulated data, we used different combination of sinusoidal functions to generate the ground truth angular velocity and linear acceleration in the body frame as shown in Figure \ref{fig:omega} and Figure \ref{fig:accel}. Then we integrate them to generate the ground-truth trajectory. We selected MPU6050, a common MEMS IMU in the mechatronics community as the example model. For each IMU, we simulate its measurements given the relative transformation in the body frame and added noises and biases. Each IMU is sampled at 100 Hz. These are done using utilities \texttt{kinematicTrajectory} and \texttt{imuSensor} provided by MATLAB.
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.95\linewidth]{figures/simulated_omega.png}
+    \includegraphics[width=1.0\linewidth]{figures/simulated_omega.png}
     \caption{Simulated Angular Velocity}
     \label{fig:omega}
 \end{figure}
 \begin{figure}
     \centering
-    \includegraphics[width=0.95\linewidth]{figures/simulated_accel.png}
+    \includegraphics[width=1.0\linewidth]{figures/simulated_accel.png}
     \caption{Simulated Linear Acceleration}
     \label{fig:accel}
 \end{figure}
@@ -371,13 +376,13 @@ To generate the simulated data, we first use combination of sinusoidal functions
 
 \subsection{Implementation}
 
-We also simulate observations of known landmark from a monocular camera. This turns the estimation problem into a localization problem such that the error is bounded. For each camera frame, we first sample random observations in imaging plane as well as depth (between 2 and 10 m). We then perform reprojection and transform it to inertial frame with the ground truth pose to generate the corresponding landmark positions. Camera observations arrives at 2 Hz. We selected this low update rate to allow error to propagate for better showing the benefits of averaging.
+We also simulate observations of known landmarks from a monocular camera. This turns the estimation problem into a localization problem such that the error is bounded. For each camera frame, we first sample random observations in the imaging plane as well as depth (between 2 and 10 m). We perform reprojection and transform the resulted 3D points to the inertial frame with the ground-truth pose to generate the corresponding landmark positions. Camera observations arrive at 2 Hz. We selected this low update rate to allow error to propagate for better showing the benefits of averaging.
 
-For estimator we implemented the \textit{left-}Invariant Extended Kalman Filter (IEKF) \cite{IEKF} as it is more accurate compared to standard EKF methods. At initialization stage, given all IMU poses, we compute the weighting that places the VIMU frame at body frame. Using the weights, we also calculate the combined noises and bias drift rates. When new IMU measurements arrive, they are weighted averaged and then feed into the estimator same as single IMU case. When camera observations arrives, the 2D observations and 3D landmark positions are used for correction step.
+For the estimator, we implemented the \textit{left-}Invariant Extended Kalman Filter (IEKF) \cite{IEKF} as it is more accurate compared to standard EKF methods. At initialization stage, given all IMU poses, we compute the weighting that places the VIMU frame at the body frame. Using the weights, we also calculate the combined noises and bias drift rates. When new IMU measurements arrive, they are weighted averaged and then fed into the estimator as though we have a single IMU. When camera observations arrive, the 2D observations and 3D landmark positions are used for the correction step.
 
 \subsection{Experiment Setup}
 
-For performance, we compared results of multiple different IMU configurations summarized in Table \ref{tab:imu_config}. Here symmetric configurations have IMUs placed along the principle axes with an offset of 1 m with random orientation. Assymmetric configurations use IMUs perturbed from symmetric configuration such that different weighting other than 1 is required to have VIMU frame at origin of body frame. We place the VIMU frame same as body frame for all configurations to give a fair comparison of performance (direct comparison with ground truth). Pose of all IMUs used are summarized in Table \ref{tab:imu_pose}.
+For performance, we compared results of multiple different IMU configurations summarized in Table \ref{tab:imu_config}. Here symmetric configurations have IMUs placed along the principal axes with an offset of 1 m with random orientation. Assymmetric configurations use IMUs perturbed from the symmetric configuration such that unequal weightings are required to have VIMU frame at origin of body frame. We place the VIMU frame at the body frame for all configurations to give a fair comparison of performance (direct comparison with ground truth). Pose of all IMUs used are summarized in Table \ref{tab:imu_pose}.
 
 \begin{table}[h!]
 \centering
@@ -430,7 +435,7 @@ IMU-S6 & Asymmetric & 6 & 11, 12, 13, 14, 15, 16 \\
 
 \subsection{Results}
 
-The results are summarized in Table \ref{tab:sim_result}. As more and more IMUs are fused, the mean errors decrease. This matches with the expectation as the combined noises from fused IMU are attenuated as shown by equation \ref{noise_reduction_asym} and \ref{noise_reduction_sym}. Comparing asymmetric configuration against symmetric configurations, the errors are marginally larger. This can be explained by the non-uniform weighting which gives higher level of noise than equal weighting given that all IMU are the same. Overall, the results suggest averaging between IMUs works for both gyroscope and accelerometer measurements disregarding the orientation and separation. The combined measurements are also more accurate.
+The results are summarized in Table \ref{tab:sim_result}. As more and more IMUs are fused, the mean errors decrease. This matches with the expectation as the combined noises from fused IMU are attenuated as shown by (\ref{noise_reduction_asym}) and (\ref{noise_reduction_sym}). Comparing asymmetric configurations against symmetric configurations, the errors are marginally larger. This can be explained by the unequal weighting, which gives higher level of noises than equal weighting given that all IMUs are identical. Overall, the results suggest averaging between IMUs works for both gyroscope and accelerometer measurements. The combined measurements are also more accurate.
 
 \begin{table}[h!]
 \centering
@@ -457,23 +462,23 @@ IMU-A6 & 0.01083 & 0.01221 & 0.08944 & 0.10077 \\
 
 \section{Real-World Experiment}
 
-For real-world experiment, we choose to perform visual-inertial odometry to understand the performance of averaging in real-life scenario.
+For real-world experiments, we chose to perform visual-inertial odometry to understand the performance of averaging in a realistic scenario.
 
 \subsection{Dataset}
 
-Most public datasets only contain single IMU. The dataset we find that contains more than one IMU is the PennCOSYVIO dataset \cite{penncosyvio}. This dataset contains 4 different runs with sensor data from three IMUs and multiple cameras. For our experiment, we choose to only use the VI sensor camera as they were provided with complete information regarding intrinsic, extrinsic, and distortion information. We also only used the left camera of the VI sensor such that it forms the minimal configuration with single IMU. This is to better expose the impact of IMUs on performance. We select the VI sensor IMU as the main IMU as it is more accurate compared to the IMUs in the two Tango devices. We will be comparing the performance of using only the VI sensor IMU vs VIMU from averaging all three IMUs.
+Most public datasets only contain a single IMU. We found that the PennCOSYVIO dataset \cite{penncosyvio} meets our needs of containing data from multiple IMUs. This dataset contains 4 different runs with sensor data from three IMUs and multiple cameras. For our experiment, we chose to only use the VI sensor camera as it was provided with complete information regarding intrinsic, extrinsic, and distortion information. We also only used the left camera of the VI sensor such that it forms the minimal configuration with a single IMU. This is to better expose the impact of IMUs on performance. We select the VI sensor IMU as the main IMU as it is more accurate compared to the IMUs in the two Tango devices. We will be comparing the performance of using only the VI sensor IMU vs. VIMU from averaging all three IMUs.
 
 \subsection{Implementation}
 
-For VIO implementation, we choose to use OpenVINS \cite{openvins} to test the different IMU configurations. OpenVINS is based on the MSCKF and supports single IMU with multiple cameras. It can also estimate cameras and IMU intrinsic as well as time offset and extrinsic between IMU and cameras. After some tuning, we found that enabling extrinsic and time offset estimation gives the best result over many repeated runs. Also since the PennCOSYVIO dataset doesn't have the initialization phase when the vehicle is at rest, we enable dynamic initialization in OpenVINS to estimate initial velocity and biases in motion.
+For VIO implementation, we selected OpenVINS \cite{openvins} to test the different IMU configurations. OpenVINS is based on the MSCKF and supports a single IMU with multiple cameras. It can also estimate cameras and IMU intrinsics as well as time offset and extrinsics between IMU and cameras. After some tuning, we found that enabling extrinsic and time offset estimation gives the best result over many repeated runs. Also since the PennCOSYVIO dataset doesn't have the initialization phase when the vehicle is at rest, we enable dynamic initialization in OpenVINS to estimate initial velocity and biases in motion.
 
 \subsection{Setup}
 
-To demonstrate that the weighting works as expected, we designed four configuration to test. 1) Single IMU with weights $[\begin{matrix} 1.0 & 0.0 & 0.0 \end{matrix}]$. Here the first weight is for VI sensor IMU, second weight for top Tango IMU, and the third weight is for bottom Tango IMU. 2) Averaged VIMU with weights $[\begin{matrix} 0.33 & 0.33 & 0.33 \end{matrix}]$. 3) VIMU closest to body frame origin with weights $[\begin{matrix} 0.4944 & 0.1546 & 0.3509 \end{matrix}]$. This places the VIMU at $[\begin{matrix} 0.0186 & -0.0012 & -0.0046 \end{matrix}]$ in body frame. 4) We also designed a case for which some of the weights go negative $[\begin{matrix} 1.2 & -0.1 & -0.1 \end{matrix}]$. This places the VIMU outside of the triangle formed by the three IMUs.
+To demonstrate that the weighting works as expected, we designed four configurations to test: 1) single IMU with weights $[\begin{matrix} 1.0 & 0.0 & 0.0 \end{matrix}]$ (here the first weight is for VI sensor IMU, second weight for top Tango IMU, and the third weight is for bottom Tango IMU), 2) averaged VIMU with weights $[\begin{matrix} 0.33 & 0.33 & 0.33 \end{matrix}]$, 3) VIMU closest to body frame origin with weights $[\begin{matrix} 0.4944 & 0.1546 & 0.3509 \end{matrix}]$ (this places the VIMU at $[\begin{matrix} 0.0186 & -0.0012 & -0.0046 \end{matrix}]$ in the body frame), 4) we also designed a case for which some of the weights go negative $[\begin{matrix} 1.2 & -0.1 & -0.1 \end{matrix}]$ (his places the VIMU outside of the triangle formed by the three IMUs).
 
 \subsection{Results}
 
-The results are summarized in Table \ref{tab:vio_result}. Example trajectories against ground truth are plotted in Figure \ref{fig:posyaw_af}.
+The results are summarized in Table \ref{tab:vio_result}. In Figures \ref{fig:posyaw_af} and Figure \ref{fig:error_af}, we show the trajectories and errors for run AF as an example.
 
 \begin{figure}
     \centering
@@ -482,15 +487,25 @@ The results are summarized in Table \ref{tab:vio_result}. Example trajectories a
     \label{fig:posyaw_af}
 \end{figure}
 
-From the result, different configurations perform similarly. Error reduction from averaging as in simulation is not seen. This is believed to be due to various imperfections from the real-world dataset. For run BF, the large rotation error is due to some incorrect association between estimated trajectory and ground truth.
+From the results, we can clearly see that the averaged and centered configuration works better than using a single IMU. This is as expected as averaging can reduce the noise and slow down the bias drift thus result in more accurate tracking of a trajectory. We also see that the negative configuration has larger error over time, this is due to the fact that when the norm of the weight vector goes larger than 1, noises are amplified.
 
-1) Poor calibration. According to the paper of the PennCOSYVIO dataset, the extrinsic calibration is only done between the cameras (for VI sensor only the left camera is calibrated). The IMU positions are assumed from the factory calibration relative to their respective cameras. The chain of transformation introduces large calibration error when averaging the two Tango IMUs with the VI sensor IMU. The VIMU is expected to have less accurate calibration when used with the VI sensor compared to the  built-in IMU.
+% From the result, different configurations perform similarly. Error reduction from averaging as in simulation is not seen. This is believed to be due to various imperfections from the real-world dataset. For run BF, the large rotation error is due to some incorrect association between estimated trajectory and ground truth.
 
-2) No static data. Another issue with the dataset is that there is no static stage at the beginning. The initial static stage is crucial for accurate VIO as it allows estimating the initial biases as well as provides known zero initial velocity. As a result, in OpenVINS we have to rely on dynamic initialization which is less accurate compared to static initialization.
+\begin{figure}
+    \centering
+    \includegraphics[width=1.0\linewidth]{figures/error_comp_af_nolabel.png}
+    \caption{Example Error Accumulation over Time (Run=AF). Top is rotational error. Bottom is positional error. \\
+    Single (Blue) Averaged (Red), Centered (Green), Negative (Yellow) }
+    \label{fig:error_af}
+\end{figure}
 
-3) Vibration and flexing in the fixture. Due to the large separation between all sensors, the physical vibration and deflection in the system can introduce noise and error as well.
+% 1) Poor calibration. According to the paper of the PennCOSYVIO dataset, the extrinsic calibration is only done between the cameras (for VI sensor only the left camera is calibrated). The IMU positions are assumed from the factory calibration relative to their respective cameras. The chain of transformation introduces large calibration error when averaging the two Tango IMUs with the VI sensor IMU. The VIMU is expected to have less accurate calibration when used with the VI sensor compared to the  built-in IMU.
 
-It is expected that the noise improvement from averaging is overwhelmed by the imperfection mentioned above. However, from the result we can still conclude that averaging across multiple IMUs with separation works as expected giving the freedom of placing VIMU frame at preferred location which may not be physically accessible.
+% 2) No static data. Another issue with the dataset is that there is no static stage at the beginning. The initial static stage is crucial for accurate VIO as it allows estimating the initial biases as well as provides known zero initial velocity. As a result, in OpenVINS we have to rely on dynamic initialization which is less accurate compared to static initialization.
+
+% 3) Vibration and flexing in the fixture. Due to the large separation between all sensors, the physical vibration and deflection in the system can introduce noise and error as well.
+
+% It is expected that the noise improvement from averaging is overwhelmed by the imperfection mentioned above. However, from the result we can still conclude that averaging across multiple IMUs with separation works as expected giving the freedom of placing VIMU frame at preferred location which may not be physically accessible.
 
 \begin{table}[h!]
 \centering
@@ -502,32 +517,34 @@ It is expected that the noise improvement from averaging is overwhelmed by the i
 \cmidrule(lr){3-4} \cmidrule(lr){5-6}
  & & MAE & RMSE & MAE & RMSE \\
 \midrule
-AF & Single   & \textbf{1.335} & \textbf{1.544} & \textbf{0.327} & \textbf{0.409} \\
-AF & Averaged & 1.623 & 1.817 & 0.352 & 0.401 \\
-AF & Centered & 1.683 & 1.859 & 0.390 & 0.433 \\
-AF & Negative & 1.603 & 1.849 & 0.535 & 0.684 \\
+AF & Single    & 0.0428 & 0.0451 & 1.0031 & 1.0946 \\
+AF & Averaged  & \textbf{0.0337} & \textbf{0.0373} & \textbf{0.5051} & \textbf{0.5393} \\
+AF & Centered  & 0.0419 & 0.0459 & 0.8258 & 0.9331 \\
+AF & Negative  & 0.0505 & 0.0523 & 1.5588 & 1.7128 \\
 \midrule
-AS & Single   & \textbf{1.323} & \textbf{1.576} & 0.606 & 0.678 \\
-AS & Averaged & 1.709 & 2.103 & 0.585 & 0.667 \\
-AS & Centered & 1.390 & 1.696 & 0.479 & 0.533 \\
-AS & Negative & 1.425 & 1.619 & \textbf{0.438} & \textbf{0.475} \\
+AS & Single    & 0.0400 & 0.0433 & 1.4822 & 1.5485 \\
+AS & Averaged  & 0.0421 & 0.0462 & 1.4427 & 1.4902 \\
+AS & Centered  & \textbf{0.0324} & \textbf{0.0365} & \textbf{1.3765} & \textbf{1.4387} \\
+AS & Negative  & 0.0759 & 0.0821 & 1.7956 & 2.0234 \\
 \midrule
-BF & Single   & 3.708 & 16.804 & \textbf{0.318} & \textbf{0.369} \\
-BF & Averaged & 4.003 & 16.818 & 0.371 & 0.390 \\
-BF & Centered & \textbf{3.648} & \textbf{16.789} & 0.366 & 0.402 \\
-BF & Negative & 3.723 & 16.822 & 0.887 & 1.279 \\
+BF & Single    & 0.0890 & 0.2983 & 1.1189 & 1.2289 \\
+BF & Averaged  & 0.0794 & \textbf{0.2967} & \textbf{0.4917} & \textbf{0.5262} \\
+BF & Centered  & \textbf{0.0787} & 0.2967 & 0.7021 & 0.7417 \\
+BF & Negative  & 0.1082 & 0.3020 & 3.4679 & 3.6277 \\
 \midrule
-BS & Single   & \textbf{1.416} & \textbf{1.571} & 0.429 & 0.503 \\
-BS & Averaged & 1.493 & 1.631 & 0.476 & 0.588 \\
-BS & Centered & 1.418 & 1.595 & \textbf{0.318} & \textbf{0.339} \\
-BS & Negative & 1.545 & 1.777 & 0.518 & 0.658 \\
+BS & Single    & 0.0402 & 0.0659 & 1.5926 & 1.7065 \\
+BS & Averaged  & 0.0353 & 0.0635 & 2.1734 & 2.2367 \\
+BS & Centered  & \textbf{0.0290} & \textbf{0.0592} & \textbf{1.0496} & \textbf{1.1091} \\
+BS & Negative  & 0.0490 & 0.0714 & 1.8005 & 1.9496 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \section{Conclusion}
 
-In this paper we presented that in addition to averaging gyroscopes we can also average multiple accelerometers that are physically separated. We also discussed the closed-form solution in determining the weights for placing the VIMU frame at preferred location while minimizing the noises. Through simulation experiment, we validated the main concept as well as demonstrated the noise reduction benefit of averaging. With real-world dataset, despite the imperfection in the data, we managed to show the averaging technique proposed is a valid approach to take advantage of the redundant IMUs on board. It also reveals the importance of accurate calibration when averaging multiple IMUs. Method of tuning the weights to compensate for the calibration error can be a future work to explore.
+In this paper, we presented that in addition to averaging gyroscopes we can also average multiple accelerometers that are physically separated. We discussed the closed-form solution in determining the weights for placing the VIMU frame at a preferred location while minimizing the measurement noises. Through both simulation and a real dataset experiment, we validated the main concept of VIMU frame placement as well as demonstrated the noise reduction benefit of averaging.
+
+% With real-world dataset, despite the imperfection in the data, we managed to show the averaging technique proposed is a valid approach to take advantage of the redundant IMUs on board. It also reveals the importance of accurate calibration when averaging multiple IMUs. Method of tuning the weights to compensate for the calibration error can be a future work to explore.
 
 \bibliographystyle{plain}
 \bibliography{References.bib}
