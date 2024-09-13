@@ -61,9 +61,19 @@ To improve robustness, there have being works in introducing redundant IMUs for 
 
 Despite the works mentioned above, most systems and applications still only use a single IMU in the estimation pipeline. The vehicle frame is chosen to be at the frame of reference of the IMU to avoid introducing additional kinematics terms from the lever-arm effect. If such IMU frame differ from a frame of reference of concern, additional transformation is needed after the estimation pipeline.
 
-In this article, we show that through a weighted averaging of multiple non-collocated IMUs, we can choose an arbitrary VIMU frame of reference that gives quality-of-life improvement and offering additional benefit of reduced noise and bias drift.
+\textcolor{red}{In this article, we will show that through a weighted averaging of multiple non-collocated IMUs, we can choose an arbitrary VIMU frame of reference as shown in Figure \ref{fig:vimu_frame}, that gives quality-of-life improvement and offering additional benefit of reduced noise and bias drift. In section \ref{related_work} we will compare different approaches of fusing multiple IMUs and in section \ref{methodology} we will discuss the main idea of how to average multiple non-collocated IMUs. Finally in section \ref{simulation} and \ref{real_experiment} we validated our findings through experiments with simulation and a real dataset.}
 
-\section{Related Work}
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\linewidth]{figures/fig_frame.png}
+    % \caption{VIMU frame $\bm{\mathcal{F}}_v$ and individual IMU sensor frame $\bm{\mathcal{F}}_s$}
+    \caption{Multiple IMU as one. Virtual IMU from weighted-averaging multiple IMUs}
+    \label{fig:vimu_frame}
+\end{figure}
+
+\section{Related Work}\label{related_work}
 
 In this section, we will introduce some prior works on fusing multiple IMUs for use in estimation pipeline.
 
@@ -130,11 +140,11 @@ If a quantity is in the form $x(t)$, then it is a time-varying quantity, otherwi
 
 The state propagation using IMU measurements follows the rigid-body kinematics in world fixed frame:
 \begin{equation}
-\begin{align}
+\begin{split}
     \dot{\textbf{C}}(t) &= \textbf{C}(t) \bm{\omega}(t)^\wedge, \\
     \dot{\textbf{v}}(t) &= \textbf{C}(t) \textbf{a}(t) - \textbf{g}, \\
     \dot{\textbf{p}}(t) &= \textbf{v}(t).
-\end{align}
+\end{split}
 \end{equation}
 
 Here $\textbf{C}$ is short for $\textbf{C}_{iv}$, $\textbf{v}$ is short for $\textbf{v}_i^{vi}$, and $\textbf{p}$ is for the position of the vehicle $\textbf{r}_i^{vi}$. These three form a 9-DOF state.
@@ -347,7 +357,7 @@ The Lagrangian of the problem is $\mathcal{L} = \frac{1}{2}\textbf{w}^T \bm{\Sig
     \textbf{w}^* = \frac{\hat{\textbf{w}}}{\textbf{1}^T \hat{\textbf{w}}}.
 \end{equation}
 
-\section{Simulation}
+\section{Simulation} \label{simulation}
 
 To check the correctness of the frame-selection method through weighted averaging, and to show performance benefit of the fused VIMU, we first performed evaluation in simulation.
 
@@ -355,34 +365,47 @@ To check the correctness of the frame-selection method through weighted averagin
 
 To generate the simulated data, we used different combination of sinusoidal functions to generate the ground truth angular velocity and linear acceleration in the body frame as shown in Figure \ref{fig:omega} and Figure \ref{fig:accel}. Then we integrate them to generate the ground-truth trajectory. We selected MPU6050, a common MEMS IMU in the mechatronics community as the example model. For each IMU, we simulate its measurements given the relative transformation in the body frame and added noises and biases. Each IMU is sampled at 100 Hz. These are done using utilities \texttt{kinematicTrajectory} and \texttt{imuSensor} provided by MATLAB.
 
-\begin{figure}
-    \centering
-    \includegraphics[width=1.0\linewidth]{figures/simulated_omega.png}
-    \caption{Simulated Angular Velocity}
-    \label{fig:omega}
-\end{figure}
-\begin{figure}
-    \centering
-    \includegraphics[width=1.0\linewidth]{figures/simulated_accel.png}
-    \caption{Simulated Linear Acceleration}
-    \label{fig:accel}
-\end{figure}
-% \begin{figure}
+% \begin{figure}[t!]
 %     \centering
-%     \includegraphics[width=0.85\linewidth]{figures/simulated_trajectory.png}
-%     \caption{Ground truth Trajectory from Integration}
-%     \label{fig:trajectory}
+%     \includegraphics[width=1.0\linewidth]{figures/simulated_omega.png}
+%     \caption{Simulated Angular Velocity}
+%     \label{fig:omega}
 % \end{figure}
+
+% \begin{figure}[t!]
+%     \centering
+%     \includegraphics[width=1.0\linewidth]{figures/simulated_accel.png}
+%     \caption{Simulated Linear Acceleration}
+%     \label{fig:accel}
+% \end{figure}
+
+\begin{figure*}[ht]
+    \centering
+    \begin{subfigure}[b]{0.45\linewidth}
+        \centering
+        \includegraphics[width=9cm]{figures/simulated_omega.png}
+        \caption{Simulated Angular Velocity}
+        \label{fig:omega}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.45\linewidth}
+        \centering
+        \includegraphics[width=9cm]{figures/simulated_accel.png}
+        \caption{Simulated Linear Acceleration}
+        \label{fig:accel}
+    \end{subfigure}
+\caption{Simulated kinematics for ground-truth trajectory generation}
+\label{fig:simulation_data}
+\end{figure*}
 
 \subsection{Implementation}
 
-We also simulate observations of known landmarks from a monocular camera. This turns the estimation problem into a localization problem such that the error is bounded. For each camera frame, we first sample random observations in the imaging plane as well as depth (between 2 and 10 m). We perform reprojection and transform the resulted 3D points to the inertial frame with the ground-truth pose to generate the corresponding landmark positions. Camera observations arrive at 2 Hz. We selected this low update rate to allow error to propagate for better showing the benefits of averaging.
+We also simulate observations of known landmarks from a monocular camera at body frame. This turns the estimation problem into a localization problem such that the error is bounded. For each camera frame, we first sample random observations in the imaging plane as well as depth (between 2 and 10 m). We perform reprojection and transform the resulted 3D points to the inertial frame with the ground-truth pose to generate the corresponding landmark positions. Camera observations arrive at 2 Hz. We selected this low update rate to allow error to propagate for better showing the benefits of averaging.
 
-For the estimator, we implemented the \textit{left-}Invariant Extended Kalman Filter (IEKF) \cite{IEKF} as it is more accurate compared to standard EKF methods. At initialization stage, given all IMU poses, we compute the weighting that places the VIMU frame at the body frame. Using the weights, we also calculate the combined noises and bias drift rates. When new IMU measurements arrive, they are weighted averaged and then fed into the estimator as though we have a single IMU. When camera observations arrive, the 2D observations and 3D landmark positions are used for the correction step.
+For the estimator, we implemented the \textit{left-}Invariant Extended Kalman Filter (IEKF) \cite{IEKF} as it is more accurate compared to standard EKF methods. At initialization stage, given all IMU poses, we compute the weighting that places the VIMU frame at the body frame, which is also the camera frame. Using the weights, we also calculate the combined noises and bias drift rates. When new IMU measurements arrive, they are weighted averaged and then fed into the estimator as though we have a single IMU. When camera observations arrive, the 2D observations and 3D landmark positions are used for the correction step.
 
 \subsection{Experiment Setup}
 
-For performance, we compared results of multiple different IMU configurations summarized in Table \ref{tab:imu_config}. Here symmetric configurations have IMUs placed along the principal axes with an offset of 1 m with random orientation. Assymmetric configurations use IMUs perturbed from the symmetric configuration such that unequal weightings are required to have VIMU frame at origin of body frame. We place the VIMU frame at the body frame for all configurations to give a fair comparison of performance (direct comparison with ground truth). Pose of all IMUs used are summarized in Table \ref{tab:imu_pose}.
+For performance, we compared results of multiple different IMU configurations summarized in Table \ref{tab:imu_config}. Here symmetric configurations have IMUs placed along the principal axes with an offset of 1 m with random orientation. Assymmetric configurations use IMUs perturbed from the symmetric configuration such that unequal weightings are required to have VIMU frame at origin of body frame. We place the VIMU frame at the body frame for all configurations to give a fair comparison of performance (direct comparison with ground truth). Poses of all IMUs used are plotted in Figure \ref{fig:imu_configurations}.
 
 \begin{table}[h!]
 \centering
@@ -406,32 +429,64 @@ IMU-S6 & Asymmetric & 6 & 11, 12, 13, 14, 15, 16 \\
 \end{tabular}
 \end{table}
 
-\begin{table}[h!]
-\centering
-\caption{Pose of IMUs}
-\label{tab:imu_pose}
-\begin{tabular}{ccc}
-\toprule
-\textbf{IMU ID} & \textbf{orientation} & \textbf{position} \\
-\midrule
-0      & $1.000 +0.000i +0.000j + 0.000k$ & [$+0.0, +0.0, +0.0$] \\
-\midrule
-1      & $0.633 +0.065i -0.025j +0.771k$ & [$+1.0, +0.0, +0.0$] \\
-2      & $0.395 +0.795i +0.322j +0.328k$ & [$-1.0, +0.0, +0.0$] \\
-3      & $0.533 -0.314i +0.671j +0.409k$ & [$+0.0, +1.0, +0.0$] \\
-4      & $0.600 +0.323i +0.620j +0.390k$ & [$+0.0, -1.0, +0.0$] \\
-5      & $0.231 +0.495i +0.343j -0.764k$ & [$+0.0, +0.0, +1.0$] \\
-6      & $0.744 -0.473i +0.355j +0.310k$ & [$+0.0, +0.0, -1.0$] \\
-\midrule
-11     & $0.045 -0.112i +0.670j +0.733k$ & [$+0.9, +0.0, +0.0$] \\
-12     & $0.223 -0.059i +0.929j -0.289k$ & [$-1.2, +0.0, +0.0$] \\
-13     & $0.119 +0.962i +0.245j -0.031k$ & [$+0.3, +1.1, +0.0$] \\
-14     & $0.605 +0.708i +0.335j +0.141k$ & [$+0.2, -0.7, +0.0$] \\
-15     & $0.004 -0.299i +0.894j +0.333k$ & [$-0.1, +0.2, +1.3$] \\
-16     & $0.598 -0.094i -0.669j -0.432k$ & [$+0.4, -0.3, -1.1$] \\
-\bottomrule
-\end{tabular}
-\end{table}
+% \begin{table}[h!]
+% \centering
+% \caption{Pose of IMUs}
+% \label{tab:imu_pose}
+% \begin{tabular}{ccc}
+% \toprule
+% \textbf{IMU ID} & \textbf{orientation} & \textbf{position} \\
+% \midrule
+% 0      & $1.000 +0.000i +0.000j + 0.000k$ & [$+0.0, +0.0, +0.0$] \\
+% \midrule
+% 1      & $0.633 +0.065i -0.025j +0.771k$ & [$+1.0, +0.0, +0.0$] \\
+% 2      & $0.395 +0.795i +0.322j +0.328k$ & [$-1.0, +0.0, +0.0$] \\
+% 3      & $0.533 -0.314i +0.671j +0.409k$ & [$+0.0, +1.0, +0.0$] \\
+% 4      & $0.600 +0.323i +0.620j +0.390k$ & [$+0.0, -1.0, +0.0$] \\
+% 5      & $0.231 +0.495i +0.343j -0.764k$ & [$+0.0, +0.0, +1.0$] \\
+% 6      & $0.744 -0.473i +0.355j +0.310k$ & [$+0.0, +0.0, -1.0$] \\
+% \midrule
+% 11     & $0.045 -0.112i +0.670j +0.733k$ & [$+0.9, +0.0, +0.0$] \\
+% 12     & $0.223 -0.059i +0.929j -0.289k$ & [$-1.2, +0.0, +0.0$] \\
+% 13     & $0.119 +0.962i +0.245j -0.031k$ & [$+0.3, +1.1, +0.0$] \\
+% 14     & $0.605 +0.708i +0.335j +0.141k$ & [$+0.2, -0.7, +0.0$] \\
+% 15     & $0.004 -0.299i +0.894j +0.333k$ & [$-0.1, +0.2, +1.3$] \\
+% 16     & $0.598 -0.094i -0.669j -0.432k$ & [$+0.4, -0.3, -1.1$] \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=0.75\linewidth]{figures/fig_sym_cropped.png}
+%     \caption{Caption}
+%     \label{fig:enter-label}
+% \end{figure}
+
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=0.75\linewidth]{figures/fig_asym_cropped.png}
+%     \caption{Caption}
+%     \label{fig:enter-label}
+% \end{figure}
+
+\begin{figure*}[ht]
+    \centering
+    \begin{subfigure}[b]{0.45\linewidth}
+        \centering
+        \includegraphics[width=6cm]{figures/fig_sym_cropped.png}
+        \caption{Symmetrical IMU placement}
+        \label{fig:sym_imu}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.45\linewidth}
+        \centering
+        \includegraphics[width=6cm]{figures/fig_asym_cropped.png}
+        \caption{Asymmetric IMU placement}
+        \label{fig:_asym_imu}
+    \end{subfigure}
+\caption{Poses of IMUs in different configurations }
+\label{fig:imu_configurations}
+\end{figure*}
 
 \subsection{Results}
 
@@ -460,52 +515,92 @@ IMU-A6 & 0.01083 & 0.01221 & 0.08944 & 0.10077 \\
 \end{tabular}
 \end{table}
 
-\section{Real-World Experiment}
+\section{Real-World Experiment}\label{real_experiment}
 
 For real-world experiments, we chose to perform visual-inertial odometry to understand the performance of averaging in a realistic scenario.
 
 \subsection{Dataset}
 
-Most public datasets only contain a single IMU. We found that the PennCOSYVIO dataset \cite{penncosyvio} meets our needs of containing data from multiple IMUs. This dataset contains 4 different runs with sensor data from three IMUs and multiple cameras. For our experiment, we chose to only use the VI sensor camera as it was provided with complete information regarding intrinsic, extrinsic, and distortion information. We also only used the left camera of the VI sensor such that it forms the minimal configuration with a single IMU. This is to better expose the impact of IMUs on performance. We select the VI sensor IMU as the main IMU as it is more accurate compared to the IMUs in the two Tango devices. We will be comparing the performance of using only the VI sensor IMU vs. VIMU from averaging all three IMUs.
+Most public datasets only contain a single IMU. We found that the PennCOSYVIO dataset \cite{penncosyvio} meets our needs of containing data from multiple IMUs. This dataset contains 4 different runs with sensor data from three IMUs and multiple cameras as shown in Figure \ref{fig:sensor_on_rig}. For our experiment, we chose to only use the VI sensor camera as it was provided with complete information regarding intrinsic, extrinsic, and distortion information. We also only used the left camera of the VI sensor such that it forms the minimal configuration with a single IMU. This is to better expose the impact of IMUs on performance. We select the VI sensor IMU as the main IMU as it is more accurate compared to the IMUs in the two Tango devices. We will be comparing the performance of using only the VI sensor IMU vs. VIMU from averaging all three IMUs.
 
 \subsection{Implementation}
 
 For VIO implementation, we selected OpenVINS \cite{openvins} to test the different IMU configurations. OpenVINS is based on the MSCKF and supports a single IMU with multiple cameras. It can also estimate cameras and IMU intrinsics as well as time offset and extrinsics between IMU and cameras. After some tuning, we found that enabling extrinsic and time offset estimation gives the best result over many repeated runs. Also since the PennCOSYVIO dataset doesn't have the initialization phase when the vehicle is at rest, we enable dynamic initialization in OpenVINS to estimate initial velocity and biases in motion.
 
+\begin{figure}[h]
+\centering
+\begin{subfigure}{0.35\textwidth}
+\centering
+\includegraphics[width = \textwidth]{figures/rig.jpg}
+\caption{Sensors}
+\label{fig:sensor_on_rig}
+\end{subfigure}
+\begin{subfigure}{0.12\textwidth}
+\centering
+\includegraphics[width = \textwidth]{figures/rig_cropped.png}
+\caption{Ref. Frames}
+\label{fig:rig_coordinate_frame}
+\end{subfigure}
+\caption{(a) shows the type and location of sensors on the test rig. (b) shows the various frame of reference used in the experiments viewing from the side}
+\label{fig:combined}
+\end{figure}
+
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=0.75\linewidth]{figures/rig.jpg}
+%     \caption{Caption}
+%     \label{fig:enter-label}
+% \end{figure}
+
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=0.75\linewidth]{figures/rig.png}
+%     \caption{Caption}
+%     \label{fig:enter-label}
+% \end{figure}
+
 \subsection{Setup}
 
-To demonstrate that the weighting works as expected, we designed four configurations to test: 1) single IMU with weights $[\begin{matrix} 1.0 & 0.0 & 0.0 \end{matrix}]$ (here the first weight is for VI sensor IMU, second weight for top Tango IMU, and the third weight is for bottom Tango IMU), 2) averaged VIMU with weights $[\begin{matrix} 0.33 & 0.33 & 0.33 \end{matrix}]$, 3) VIMU closest to body frame origin with weights $[\begin{matrix} 0.4944 & 0.1546 & 0.3509 \end{matrix}]$ (this places the VIMU at $[\begin{matrix} 0.0186 & -0.0012 & -0.0046 \end{matrix}]$ in the body frame), 4) we also designed a case for which some of the weights go negative $[\begin{matrix} 1.2 & -0.1 & -0.1 \end{matrix}]$ (his places the VIMU outside of the triangle formed by the three IMUs).
+To demonstrate that the weighting works as expected, we designed four configurations to test: 1) single IMU with weights $[\begin{matrix} 1.0 & 0.0 & 0.0 \end{matrix}]$ (here the first weight is for VI sensor IMU, second weight for top Tango IMU, and the third weight is for bottom Tango IMU), 2) averaged VIMU with weights $[\begin{matrix} 0.33 & 0.33 & 0.33 \end{matrix}]$, 3) VIMU closest to body frame origin with weights $[\begin{matrix} 0.4944 & 0.1546 & 0.3509 \end{matrix}]$ (this places the VIMU at $[\begin{matrix} 0.0186 & -0.0012 & -0.0046 \end{matrix}]$ in the body frame), 4) we also designed a case for which some of the weights go negative $[\begin{matrix} 1.2 & -0.1 & -0.1 \end{matrix}]$ (his places the VIMU outside of the triangle formed by the three IMUs). The various reference frames are as shown in Figure \ref{fig:rig_coordinate_frame}.
 
 \subsection{Results}
 
 The results are summarized in Table \ref{tab:vio_result}. In Figures \ref{fig:posyaw_af} and Figure \ref{fig:error_af}, we show the trajectories and errors for run AF as an example.
 
-\begin{figure}
+% \begin{figure}[ht!]
+%     \centering
+%     \includegraphics[width=0.85\linewidth]{figures/example_trajectory.png}
+%     \caption{Example Trajectory (Run=AF). Black is the ground truth. Blue is with single IMU. Red is with averaged VIMU}
+%     \label{fig:posyaw_af}
+% \end{figure}
+
+% \begin{figure}[ht!]
+%     \centering
+%     \includegraphics[width=1.0\linewidth]{figures/example_error.png}
+%     \caption{Example Error Accumulation over Time (Run=AF). Top is rotational error. Bottom is positional error. \\
+%     Single (Blue) Averaged (Red), Centered (Green), Negative (Yellow) }
+%     \label{fig:error_af}
+% \end{figure}
+
+\begin{figure*}[ht]
     \centering
-    \includegraphics[width=0.85\linewidth]{figures/posyaw_af.png}
-    \caption{Example Trajectory (Run=AF). Black is the ground truth. Blue is with single IMU. Red is with averaged VIMU}
-    \label{fig:posyaw_af}
-\end{figure}
-
-From the results, we can clearly see that the averaged and centered configuration works better than using a single IMU. This is as expected as averaging can reduce the noise and slow down the bias drift thus result in more accurate tracking of a trajectory. We also see that the negative configuration has larger error over time, this is due to the fact that when the norm of the weight vector goes larger than 1, noises are amplified.
-
-% From the result, different configurations perform similarly. Error reduction from averaging as in simulation is not seen. This is believed to be due to various imperfections from the real-world dataset. For run BF, the large rotation error is due to some incorrect association between estimated trajectory and ground truth.
-
-\begin{figure}
-    \centering
-    \includegraphics[width=1.0\linewidth]{figures/error_comp_af_nolabel.png}
-    \caption{Example Error Accumulation over Time (Run=AF). Top is rotational error. Bottom is positional error. \\
-    Single (Blue) Averaged (Red), Centered (Green), Negative (Yellow) }
-    \label{fig:error_af}
-\end{figure}
-
-% 1) Poor calibration. According to the paper of the PennCOSYVIO dataset, the extrinsic calibration is only done between the cameras (for VI sensor only the left camera is calibrated). The IMU positions are assumed from the factory calibration relative to their respective cameras. The chain of transformation introduces large calibration error when averaging the two Tango IMUs with the VI sensor IMU. The VIMU is expected to have less accurate calibration when used with the VI sensor compared to the  built-in IMU.
-
-% 2) No static data. Another issue with the dataset is that there is no static stage at the beginning. The initial static stage is crucial for accurate VIO as it allows estimating the initial biases as well as provides known zero initial velocity. As a result, in OpenVINS we have to rely on dynamic initialization which is less accurate compared to static initialization.
-
-% 3) Vibration and flexing in the fixture. Due to the large separation between all sensors, the physical vibration and deflection in the system can introduce noise and error as well.
-
-% It is expected that the noise improvement from averaging is overwhelmed by the imperfection mentioned above. However, from the result we can still conclude that averaging across multiple IMUs with separation works as expected giving the freedom of placing VIMU frame at preferred location which may not be physically accessible.
+    \begin{subfigure}[b]{0.45\linewidth}
+        \centering
+        % \includegraphics[width=7cm]{figures/posyaw_af.png}
+        \includegraphics[width=8cm]{figures/example_trajectory.png}
+        \caption{Example Trajectories. All trajectories start at (0, 0).}
+        \label{fig:posyaw_af}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.45\linewidth}
+        \centering
+        % \includegraphics[width=11cm]{figures/error_comp_af_nolabel.png}
+        \includegraphics[width=9cm]{figures/example_error.png}
+        \caption{Example errors over Time Rot. (Top), Pos. (Bottom).}
+        \label{fig:error_af}
+    \end{subfigure}
+\caption{Example Result for Run AF. Single (Blue) Averaged (Red), Centered (Green), Negative (Yellow)}
+\label{fig:real_example}
+\end{figure*}
 
 \begin{table}[h!]
 \centering
@@ -539,6 +634,18 @@ BS & Negative  & 0.0490 & 0.0714 & 1.8005 & 1.9496 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+From the results, we can clearly see that the averaged and centered configuration works better than using a single IMU. This is as expected as averaging can reduce the noise and slow down the bias drift thus result in more accurate tracking of a trajectory. We also see that the negative configuration has larger error over time, this is due to the fact that when the norm of the weight vector goes larger than 1, noises are amplified.
+
+% From the result, different configurations perform similarly. Error reduction from averaging as in simulation is not seen. This is believed to be due to various imperfections from the real-world dataset. For run BF, the large rotation error is due to some incorrect association between estimated trajectory and ground truth.
+
+% 1) Poor calibration. According to the paper of the PennCOSYVIO dataset, the extrinsic calibration is only done between the cameras (for VI sensor only the left camera is calibrated). The IMU positions are assumed from the factory calibration relative to their respective cameras. The chain of transformation introduces large calibration error when averaging the two Tango IMUs with the VI sensor IMU. The VIMU is expected to have less accurate calibration when used with the VI sensor compared to the  built-in IMU.
+
+% 2) No static data. Another issue with the dataset is that there is no static stage at the beginning. The initial static stage is crucial for accurate VIO as it allows estimating the initial biases as well as provides known zero initial velocity. As a result, in OpenVINS we have to rely on dynamic initialization which is less accurate compared to static initialization.
+
+% 3) Vibration and flexing in the fixture. Due to the large separation between all sensors, the physical vibration and deflection in the system can introduce noise and error as well.
+
+% It is expected that the noise improvement from averaging is overwhelmed by the imperfection mentioned above. However, from the result we can still conclude that averaging across multiple IMUs with separation works as expected giving the freedom of placing VIMU frame at preferred location which may not be physically accessible.
 
 \section{Conclusion}
 
